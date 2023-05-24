@@ -115,7 +115,7 @@ class Vehicle:
             visited_nodes_times.append((self.path.current_position, self.path.current_time))
             self.check_if_event(events)
 
-        return visited_nodes_times, events
+        return visited_nodes_times
 
     def check_if_event(self, events: list):
         """

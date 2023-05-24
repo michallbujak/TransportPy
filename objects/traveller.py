@@ -20,7 +20,7 @@ class CharacteristicsBehaviour:
     Store behavioural characteristics of the traveller
     """
     vot: float
-    pfs: float
+    pfs: dict
     pfs_const: dict
     pickup_delay_sensitivity: float
 
@@ -71,6 +71,7 @@ class Traveller:
             raise Exception("At the moment not implemented, not sufficient fleet")
         utility = -distance * dispatcher.pricing.private_ride - \
                   self.behavioural_details.vot * distance / dispatcher.city_properties.speed \
-                  - delay * self.behavioural_details.pickup_delay_sensitivity
+                  - delay * self.behavioural_details.pickup_delay_sensitivity * \
+                  self.behavioural_details.vot
         self.utilities["private"] = utility
 

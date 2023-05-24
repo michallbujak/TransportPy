@@ -2,6 +2,9 @@
 
 import itertools
 
+from objects.dispatcher import Dispatcher
+from objects.traveller import Traveller
+
 
 def admissible_future_combinations(ods):
     """
@@ -30,5 +33,32 @@ def admissible_future_combinations(ods):
     return admissible_combinations
 
 
-def pooled_utility_formula(distance, dispatcher, pickup_delay):
+def pooled_partial_utility_formula(
+        distance: float,
+        dispatcher: Dispatcher,
+        no_travellers: int,
+        traveller: Traveller,
+) -> float:
+    """
+    Function designed to calculate utility for a specified traveller in a shared ride
+    on the given portion of the road!
+    :param distance: distance travelled
+    :param dispatcher: Dispatcher class object
+    :param no_travellers: number of travellers
+    :param traveller: Traveller object
+    :return:
+    """
+    return -distance * dispatcher.city_properties.speed * \
+        dispatcher.pricing.pool_prices[no_travellers if no_travellers < 4 else 4] - \
+        traveller.behavioural_details.vot * \
+        traveller.behavioural_details.pfs[no_travellers if no_travellers < 4 else 4] * \
+        distance / dispatcher.city_properties.speed
 
+
+def pooled_additional_utility(
+        traveller: Traveller,
+        pickup_delay: float
+) -> float:
+    return pickup_delay * traveller.behavioural_details.pickup_delay_sensitivity * \
+        traveller.behavioural_details.vot - \
+        traveller.behavioural_details.pfs_const
