@@ -1,16 +1,15 @@
 """
 Traveller class: agent in simulation
 """
-import os
-import sys
-
-sys.path.append(
-    os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
-
-from objects.dispatcher import Dispatcher
-
+# import os
+# import sys
+#
+# sys.path.append(
+#     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 from datetime import datetime
 from dataclasses import dataclass
+
+from objects.dispatcher import Dispatcher
 
 import utils.common
 
@@ -67,8 +66,11 @@ class Traveller:
             list_of_points=[self.request_details.origin, self.request_details.destination],
             skim=skim
         )
-        delay = dispatcher.private_pick_up(self.request_details.origin, skim)
+        delay = dispatcher.private_pick_up_delay(self.request_details.origin, skim)[0]
+        if delay is None:
+            raise Exception("At the moment not implemented, not sufficient fleet")
         utility = -distance * dispatcher.pricing.private_ride - \
                   self.behavioural_details.vot * distance / dispatcher.city_properties.speed \
                   - delay * self.behavioural_details.pickup_delay_sensitivity
         self.utilities["private"] = utility
+

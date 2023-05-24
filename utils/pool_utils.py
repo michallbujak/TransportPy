@@ -1,0 +1,34 @@
+""" Tools for calculations associated with pooled rides """
+
+import itertools
+
+
+def admissible_future_combinations(ods):
+    """
+    Function to create possible combination of sequence of origins and destinations,
+     where no destination proceeds corresponding origin
+    :param ods: list of labeled origins and destinations
+    :return: admissible combinations
+    """
+    all_combinations = itertools.permutations(ods)
+    admissible_combinations = []
+
+    def check_combination(comb):
+        # if comb[-2][0] == 'o':
+        #     return False
+        for num, element in enumerate(comb):
+            if element[0] == 'd':
+                if element[1] in [t[1] for t in comb[num + 1:]]:
+                    return False
+        else:
+            return True
+
+    for combination in all_combinations:
+        if check_combination(combination):
+            admissible_combinations.append(combination)
+
+    return admissible_combinations
+
+
+def pooled_utility_formula(distance, dispatcher, pickup_delay):
+

@@ -45,6 +45,7 @@ class Vehicle:
         self.start_node = start_node
         self.maximal_occupancy = maximal_occupancy
         self.vehicle_speed = vehicle_speed
+        self.available = True
 
         # Occupancy details
         self.travellers = []
