@@ -59,6 +59,6 @@ def pooled_additional_utility(
         traveller: Traveller,
         pickup_delay: float
 ) -> float:
-    return pickup_delay * traveller.behavioural_details.pickup_delay_sensitivity * \
+    return -pickup_delay * traveller.behavioural_details.pickup_delay_sensitivity * \
         traveller.behavioural_details.vot - \
         traveller.behavioural_details.pfs_const

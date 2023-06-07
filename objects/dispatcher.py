@@ -84,16 +84,26 @@ class Dispatcher:
     def dispatch_pooled(self, traveller, skim):
         """ Find the most feasible shared ride """
         minimals = []
-        for ride in self.ongoing_rides.pooled_rides:
-            origins_destinations = [t[0] for t in ride.events.future_events if t[1] == 'o' or t[1] == 'd'] + \
+        for pooled_ride in self.ongoing_rides.pooled_rides:
+            origins_destinations = [t[0] for t in pooled_ride.events.future_events if t[1] == 'o' or t[1] == 'd'] + \
                                    [traveller.request_details.origin] + \
                                    [traveller.request_details.destination]
             combinations = utils.pool_utils.admissible_future_combinations(origins_destinations)
             for comb in combinations:
-                out = ride.new_future_profit(comb, self, skim)
+                out = pooled_ride.new_future_profit(comb, self, skim)
                 if out[0]:
-                    travellers = ride.travellers.scheduled_travellers + [traveller]
-                    for trav in travellers:
+                    travellers = pooled_ride.travellers.scheduled_travellers + [traveller]
+                    utilities = pooled_ride.shared_ride_utilities(
+                        event_sequence=comb,
+                        travellers=travellers,
+                        dispatcher=self,
+                        skim=skim
+                    )
+                    if all([utilities[trav.traveller_id] >= trav.utilities['private'] for trav in travellers]):
+                        minimals.append((out[1], pooled_ride))
+        if len(minimals) > 0:
+            matched_ride = min(minimals, key=lambda x: x[0])[1]
+
 
 
 
