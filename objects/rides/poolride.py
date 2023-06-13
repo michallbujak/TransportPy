@@ -8,6 +8,7 @@ from objects.dispatcher import Dispatcher
 
 import utils.common
 import utils.pool_utils
+from basicride import Ride
 
 
 @dataclass
@@ -42,7 +43,7 @@ class Path:
     time_between_crossroads: int
 
 
-class PoolRide:
+class PoolRide(Ride):
     """
     Class representing realisation of a certain ride.
     It starts with some request and progresses over time.
@@ -52,7 +53,8 @@ class PoolRide:
     def __init__(self,
                  travellers: dict,
                  start_time: datetime,
-                 request: tuple):
+                 request: tuple,
+                 skim: dict):
         """
         :param travellers: list of Travellers objects
         :param start_time: starting time, datetime object
@@ -73,30 +75,24 @@ class PoolRide:
             past_profit=None,
             future_profit=None
         )
+        path = utils.common.compute_path([request[1], request[2]], skim)
         self.positioning = Path(
-
+            current_position=request[1],
+            current_time=request[3],
+            current_path=path,
+            nearest_crossroad=path[1],
+            time_between_crossroads=0
         )
 
-    @staticmethod
-    def update_number_travellers(event, travellers_no):
-        flag = False
-        if event[1] == 'o':
-            travellers_no += 1
-        if event[1] == 'd' and travellers_no == 1:
-            flag = True
-        if event[1] == 'd' and travellers_no != 1:
-            travellers_no -= 1
-        return travellers_no, flag
-
-    def move(self, time):
+    def move(self, time, skim):
         time_left = time
-        while self.path.current_path is not None:
+        while self.positioning.current_path is not None:
             assert (
-                    self.path.nearest_crossroad is not None
+                    self.positioning.nearest_crossroad is not None
             ), "The path has not been updated, vehicle does not have a path to follow"
 
             self.path.stationary_position = False
-            distance_to_crossroad = compute_distance(
+            distance_to_crossroad = utils.common.compute_distance(
                 skim, self.path.current_position, self.path.current_path[1], "option1"
             )
             time_required_to_crossroad = (
@@ -141,7 +137,7 @@ class PoolRide:
             price = dispatcher.pricing.pool_prices[travellers_no if travellers_no < 4 else 4]
             profit += dist * price * travellers_no
 
-            travellers_no, break_flag = self.update_number_travellers(event, travellers_no)
+            travellers_no, break_flag = update_number_travellers(event, travellers_no)
             if break_flag:
                 break
 
@@ -166,7 +162,7 @@ class PoolRide:
             dist = utils.common.compute_distance([prev_event[0], event[0]], skim)
 
             # Update traveller number
-            travellers_no, break_flag = self.update_number_travellers(event, travellers_no)
+            travellers_no, break_flag = update_number_travellers(event, travellers_no)
             if break_flag:
                 break
 
@@ -195,3 +191,14 @@ class PoolRide:
 
     def accept_traveller(self, traveller):
         self.travellers.scheduled_travellers[traveller.traveller_id] = traveller
+
+
+def update_number_travellers(event, travellers_no):
+    flag = False
+    if event[1] == 'o':
+        travellers_no += 1
+    if event[1] == 'd' and travellers_no == 1:
+        flag = True
+    if event[1] == 'd' and travellers_no != 1:
+        travellers_no -= 1
+    return travellers_no, flag

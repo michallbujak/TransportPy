@@ -1,12 +1,17 @@
 """ Tools used across scripts """
 from datetime import timedelta
+from dataclasses import asdict
 
 
-def compute_distance(list_of_points, skim, dataset_type="big_dataset"):
+def compute_distance(list_of_points, skim):
     return 0
 
 
-def move_vehicle_ride(veh_ride, time, skim, veh_speed=6):
+def compute_path(list_of_points, skim):
+    return 0
+
+
+def move_vehicle_ride(veh_ride, time, skim, event_behaviour=None, veh_speed=6):
     try:
         avg_speed = veh_ride.vehicle_speed
     except AttributeError:
@@ -23,7 +28,7 @@ def move_vehicle_ride(veh_ride, time, skim, veh_speed=6):
             [veh_ride.path.current_position, veh_ride.path.current_path[1]], skim
         )
         time_required_to_crossroad = \
-            distance_to_crossroad / avg_speed-veh_ride.path.time_between_crossroads
+            distance_to_crossroad / avg_speed - veh_ride.path.time_between_crossroads
 
         if time_left < time_required_to_crossroad:
             # not sufficient time to reach the nearest crossroad
@@ -43,8 +48,13 @@ def move_vehicle_ride(veh_ride, time, skim, veh_speed=6):
         if len(veh_ride.path.current_path) == 1:
             veh_ride.path.current_path = None
             veh_ride.path.nearest_crossroad = None
-            veh_ride.path.stationary_position = True
+            if 'stationary_position' in asdict(veh_ride.path).keys():
+                veh_ride.path.stationary_position = True
 
         else:
             veh_ride.path.nearest_crossroad = veh_ride.path.current_path[1]
 
+        if event_behaviour is not None:
+            event_behaviour['foo'](veh_ride, event_behaviour['events'])
+
+    return None
