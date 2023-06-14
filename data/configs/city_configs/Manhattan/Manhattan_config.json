@@ -1,0 +1,1 @@
+{"city": "Manhattan, New York County, New York, United States", "paths": {"requests": "data/requests/Manhattan/Manhattan_requests_all.csv", "city_graph": "data/city_graphs/Manhattan/Manhattan_city_graph.graphml", "shortest_paths": "data/city_graphs/Manhattan/Manhattan_shortest_paths.pkl"}}
