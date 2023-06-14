@@ -29,7 +29,7 @@ class Vehicle:
             start_node: int,
             start_time: datetime,
             capacity: int = 8,
-            vehicle_speed: int = 6,
+            vehicle_speed: int = 6
     ):
         """
         :param vehicle_id: id of the vehicle
@@ -39,7 +39,7 @@ class Vehicle:
         :param vehicle_speed: average speed of the vehicle
         """
         # Vehicle characteristics, constant
-        self.ride_id = vehicle_id
+        self.vehicle_id = vehicle_id
         self.start_node = start_node
         self.maximal_occupancy = capacity
         self.vehicle_speed = vehicle_speed
