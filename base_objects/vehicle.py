@@ -28,20 +28,20 @@ class Vehicle:
             vehicle_id: int,
             start_node: int,
             start_time: datetime,
-            maximal_occupancy: int = 8,
+            capacity: int = 8,
             vehicle_speed: int = 6,
     ):
         """
         :param vehicle_id: id of the vehicle
         :param start_node: node at which vehicle is positioned at a given time (osmnx node id)
         :param start_time: starting time: time at which vehicle appears in start_node
-        :param maximal_occupancy: maximal occupancy of the vehicle (number of travellers)
+        :param capacity: maximal occupancy of the vehicle (number of travellers)
         :param vehicle_speed: average speed of the vehicle
         """
         # Vehicle characteristics, constant
         self.ride_id = vehicle_id
         self.start_node = start_node
-        self.maximal_occupancy = maximal_occupancy
+        self.maximal_occupancy = capacity
         self.vehicle_speed = vehicle_speed
         self.available = True
 

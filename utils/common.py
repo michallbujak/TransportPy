@@ -1,6 +1,36 @@
 """ Tools used across scripts """
+import json
+import os
+
+import pandas as pd
+import numpy as np
+import osmnx as ox
+import networkx as nx
+
 from datetime import timedelta
 from dataclasses import asdict
+
+
+def load_config(path):
+    """
+    Load configuration files from .json format
+    :param path: path to the configuration file
+    :return: configuration dictionary
+    """
+    print(os.getcwd())
+    with open(path, encoding='utf-8') as json_file:
+        config = json.load(json_file)
+    return config
+
+
+def distinguish_fleet(vehicles):
+    types = np.unique(np.array(vehicles["type"]))
+    fleet = dict()
+    for t in types:
+        fleet[t] = []
+        for num, veh in vehicles.loc[vehicles["type"] == t].iterrows():
+            fleet[t].append(veh)
+    return fleet
 
 
 def compute_distance(list_of_points, skim):

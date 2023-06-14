@@ -7,12 +7,12 @@ class Dispatcher:
     """
     Dispatcher with the modular build
     """
-    def __int__(self,
+    def __init__(self,
                 dispatcher_id: float,
-                pricing: dict,
+                fares: dict,
                 fleet: dict
                 ):
         self.dispatcher_id = dispatcher_id
-        self.pricing = pricing
+        self.fares = fares
         self.fleet = fleet
 
