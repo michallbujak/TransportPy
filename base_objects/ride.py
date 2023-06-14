@@ -9,9 +9,11 @@ class Ride:
     """
     def __init__(
             self,
-            travellers: list
+            travellers: list,
+            locations: list
     ):
         self.travellers = travellers
+        self.locations = locations
         self.profitability = None
 
     def calculate_profitability(self):
@@ -19,6 +21,11 @@ class Ride:
         Calculate ride's profitability
         Update self. profitability
         """
-        pass
+        raise NotImplementedError("method calculate_profitability must be implemented")
 
-
+    def calculate_utility(self, traveller, *args, **kwargs):
+        """
+        Calculate ride's profitability
+        Update self. profitability
+        """
+        raise NotImplementedError("method calculate_utility must be implemented")

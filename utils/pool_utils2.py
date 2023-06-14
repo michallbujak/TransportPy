@@ -2,8 +2,8 @@
 
 import itertools
 
-from objects.dispatcher import Dispatcher
-from objects.traveller import Traveller
+from objects2.dispatcher import Dispatcher
+from objects2.traveller import Traveller
 
 
 def admissible_future_combinations(ods):

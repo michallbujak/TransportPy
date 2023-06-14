@@ -4,10 +4,10 @@ Create a ride class - object to store information regarding one separate ride
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from objects.dispatcher import Dispatcher
+from objects2.dispatcher import Dispatcher
 
 import utils.common
-import utils.pool_utils
+import utils.pool_utils2
 from basicride import Ride
 
 
@@ -56,7 +56,7 @@ class PoolRide(Ride):
                  request: tuple,
                  skim: dict):
         """
-        :param travellers: list of Travellers objects
+        :param travellers: list of Travellers objects2
         :param start_time: starting time, datetime object
         :param request: (traveller_id, starting_point, end_point, start_time)
         """

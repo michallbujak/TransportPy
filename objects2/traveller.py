@@ -9,7 +9,7 @@ Traveller class: agent in simulation
 from datetime import datetime
 from dataclasses import dataclass
 
-from objects.dispatcher import Dispatcher
+from objects2.dispatcher import Dispatcher
 
 import utils.common
 
