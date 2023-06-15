@@ -9,22 +9,27 @@ from base_objects.traveller import Traveller
 from base_objects.vehicle import Vehicle
 from rides.taxi_ride import TaxiRide
 
+# Initialise logger
+logger = utc.initialise_logger("INFO")
+
 # Initialise all required data
-initial_config = utc.load_config("data/configs/simulation_configs/simulation_config_test.json")
+initial_config = utc.load_config("data/configs/simulation_configs/simulation_config_test.json", logger)
 
 requests = pd.read_excel(initial_config["requests"])
 vehicles = pd.read_excel(initial_config["vehicles"])
 
-city_config = utc.load_config(initial_config["city_config"])
-behavioural_config = utc.load_config(initial_config["behavioural_config"])
+city_config = utc.load_config(initial_config["city_config"], logger)
+behavioural_config = utc.load_config(initial_config["behavioural_config"], logger)
 
-fleet = utc.distinguish_fleet(vehicles)
+fleet = utc.distinguish_fleet(vehicles, logger)
 
 Dispatcher = Dispatcher(
     dispatcher_id=1,
     fares=initial_config["fares"],
     fleet={}
 )
+
+skim = utc.load_skim(city_config, logger)
 
 req_times = [(req['request_time'], 1, req) for num, req in requests.iterrows()]
 veh_times = [(veh['start_time'], 0, veh) for veh in fleet['taxi']]
@@ -42,8 +47,8 @@ for veh_req in veh_req_times:
         )
         continue
     else:
-        Dispatcher.assign_taxi()
-
+        # Dispatcher.assign_taxi()
+        pass
 
 
 

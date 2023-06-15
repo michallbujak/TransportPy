@@ -1,1 +1,7 @@
-{"city": "Brzesko, gmina Brzesko, Brzesko County, Lesser Poland Voivodeship, Poland", "paths": {"requests": "data/requests/Brzesko/Brzesko_requests.xlsx", "skim_matrix": "data/city_graphs/Brzesko/Brzesko_skim_matrix.parquet", "shortest_paths": "data/city_graphs/Brzesko/Brzesko_shortest_paths.pkl", "city_graph": "data/city_graphs/Brzesko/Brzesko_city_graph.graphml"}}
+{
+	"city": "Brzesko, gmina Brzesko, Brzesko County, Lesser Poland Voivodeship, Poland",
+	"paths": {
+		"skim_matrix": "data/city_graphs/Brzesko/Brzesko_skim_matrix.parquet",
+		"city_graph": "data/city_graphs/Brzesko/Brzesko_city_graph.graphml"
+	}
+}

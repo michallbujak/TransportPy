@@ -23,7 +23,7 @@ class Dispatcher:
             if veh.available:
                 dist_new = utc.compute_distance([node, veh.Positioning.current_position], skim)
                 if dist[0] > dist_new:
-                    dist = (dist_new, veh.vehicle_id)
+                    dist = (dist_new, veh)
 
 
 

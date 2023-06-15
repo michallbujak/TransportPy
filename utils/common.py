@@ -1,36 +1,126 @@
 """ Tools used across scripts """
 import json
 import os
+import sys
 
 import pandas as pd
 import numpy as np
 import osmnx as ox
 import networkx as nx
+import logging
 
 from datetime import timedelta
 from dataclasses import asdict
 
 
-def load_config(path):
+def initialise_logger(
+        logger_level: str = 'INFO'
+) -> logging.Logger:
+    '''
+    Initialise logger which will be used to provide information on consecutive algorithmic steps
+    :param logger_level: level of information
+    :return: logger
+    '''
+    logging.basicConfig(stream=sys.stdout, format='%(asctime)s-%(levelname)s-%(message)s',
+                        datefmt='%H:%M:%S', level=logger_level)
+    logger = logging.getLogger()
+    return logger
+
+
+def load_config(
+        path: str,
+        logger: logging.Logger
+) -> dict:
     """
     Load configuration files from .json format
     :param path: path to the configuration file
+    :param logger: logger for information
     :return: configuration dictionary
     """
-    print(os.getcwd())
     with open(path, encoding='utf-8') as json_file:
         config = json.load(json_file)
+    logger.info(f"Successfully loaded config from {path}")
     return config
 
 
-def distinguish_fleet(vehicles):
+def distinguish_fleet(
+        vehicles: pd.DataFrame,
+        logger: logging.Logger
+) -> dict:
+    """
+    Split fleet by vehicle type
+    :param vehicles dataframe with vehicles
+    :param logger for logging purposes
+    :return: fleet with assigned types (dict)
+    """
     types = np.unique(np.array(vehicles["type"]))
     fleet = dict()
     for t in types:
         fleet[t] = []
         for num, veh in vehicles.loc[vehicles["type"] == t].iterrows():
             fleet[t].append(veh)
+    logger.debug("Fleet assigned by types")
     return fleet
+
+
+def folder_creator(
+        path: str,
+        logger: logging.Logger
+) -> None:
+    """
+    Designed to create a folder under given path
+    :param path: a path to create a folder
+    :param logger: logging purposes
+    :return:
+    """
+    try:
+        os.mkdir(path)
+    except OSError:
+        pass
+    else:
+        logger.info(f'Creating folder at {path}')
+
+
+def load_skim(
+        city_config: dict,
+        logger: logging.Logger,
+        skim_type: str = 'graph'
+) -> dict:
+    """
+    Load data necessarily for distance and paths calculations
+    :param city_config: configuration of the city
+    :param logger: for logging purposes
+    :param skim_type: type of configuration for calculations
+    :return: skim - dictionary with way of calculation and data
+    """
+    if skim_type != 'graph':
+        raise NotImplementedError("Currently only shortest paths implemented")
+
+    try:
+        city_graph = nx.read_graphml(city_config['paths']['city_graph'])
+    except FileNotFoundError:
+        logger.info("City graph missing, using osmnx")
+        logger.info(f"Writing the city graph to {city_config['paths']['city_graph']}")
+        city_graph = ox.graph_from_place(city_config['city'], network_type='drive')
+        ox.save_graphml(city_graph, city_config['paths']['city_graph'])
+        city_config['paths']['city_graph'] = city_config['paths']['city_graph']
+    else:
+        logger.info("Successfully read city graph")
+
+    try:
+        skim_matrix = pd.read_parquet(city_config['paths']['skim_matrix'])
+    except FileNotFoundError:
+        logger.info("Skim matrix missing, calculating...")
+        skim_matrix = pd.DataFrame(dict(nx.all_pairs_dijkstra_path_length(city_graph, weight='length')))
+        skim_matrix.columns = [str(col) for col in skim_matrix.columns]
+
+        logger.info(f"Writing the skim matrix to {city_config['paths']['skim_matrix']}")
+        skim_matrix.to_parquet(city_config['paths']['skim_matrix'], compression='brotli')
+        city_config['paths']['skim_matrix'] = city_config['paths']['skim_matrix']
+    else:
+        logger.info("Successfully read skim matrix")
+
+    return {"type": "graph", "city_graph": city_graph, "skim_matrix": skim_matrix}
 
 
 def compute_distance(list_of_points, skim):
