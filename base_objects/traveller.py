@@ -41,5 +41,8 @@ class Traveller:
         self.behavioural_details = behavioural_details
         self.utilities = {}
 
+    def __repr__(self):
+        return f"Traveller {self.traveller_id}"
+
     def update_utility(self, key, val):
         self.utilities[key] = val

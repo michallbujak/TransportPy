@@ -17,6 +17,9 @@ class TaxiRide(Ride):
     def __init__(self, traveller, locations):
         super().__init__([traveller], locations)
 
+    def __repr__(self):
+        return "taxi"
+
     def calculate_profitability(self):
         """
         Calculate a profitability of a ride
@@ -24,21 +27,16 @@ class TaxiRide(Ride):
         """
         raise NotImplementedError('HH')
 
-    def calculate_utility(self,
-                          traveller: Traveller,
-                          vehicle: Any,
-                          fare: float,
-                          skim: dict
-                          ):
+    def calculate_utility(self, traveller: Traveller, fare: float, skim: dict, *args, **kwargs):
         """
         Calculate utility for the traveller
         :param traveller: (traveller_id, starting_point, end_point, start_time)
-        :param vehicle: Vehicle
         :param fare: fare in monetary units/meter
         :param skim: distances dictionary
         :return: utility
         """
-        request = traveller.RequestDetails
+        vehicle = self.serving_vehicle
+        request = traveller.request_details
         trip_length = dist([request['origin'], request['destination']], skim)
         pickup_delay = dist([request['origin'], vehicle.Positioning.current_position], skim)\
                        /vehicle.vehicle_speed
@@ -47,5 +45,4 @@ class TaxiRide(Ride):
         utility -= trip_length/vehicle.vehicle_speed * pref['VoT']
         utility -= pickup_delay * pref['VoT'] * pref['pickup_delay']
         return utility
-
 

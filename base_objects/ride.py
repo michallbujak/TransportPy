@@ -14,7 +14,9 @@ class Ride:
     ):
         self.travellers = travellers
         self.locations = locations
+        self.serving_vehicle = None
         self.profitability = None
+        self.active = True
 
     def calculate_profitability(self):
         """
@@ -23,7 +25,7 @@ class Ride:
         """
         raise NotImplementedError("method calculate_profitability must be implemented")
 
-    def calculate_utility(self, traveller, *args, **kwargs):
+    def calculate_utility(self, traveller, vehicle, fare, skim, *args, **kwargs):
         """
         Calculate ride's profitability
         Update self. profitability

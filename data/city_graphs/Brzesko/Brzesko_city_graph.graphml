@@ -3084,7 +3084,7 @@
       <data key="d10">75;94</data>
       <data key="d16">Tadeusza Kościuszki</data>
       <data key="d11">primary</data>
-      <data key="d12">['90', '50']</data>
+      <data key="d12">['50', '90']</data>
       <data key="d9">False</data>
       <data key="d13">False</data>
       <data key="d14">225.42</data>
@@ -3221,8 +3221,8 @@
     <edge source="581904403" target="581904388" id="0">
       <data key="d8">[401689944, 192978366]</data>
       <data key="d9">True</data>
-      <data key="d10">['94', '75;94']</data>
-      <data key="d16">['Tadeusza Kościuszki', 'Księdza Jerzego Popiełuszki']</data>
+      <data key="d10">['75;94', '94']</data>
+      <data key="d16">['Księdza Jerzego Popiełuszki', 'Tadeusza Kościuszki']</data>
       <data key="d11">primary</data>
       <data key="d12">['70', '50']</data>
       <data key="d13">False</data>
@@ -3417,7 +3417,7 @@
       <data key="d10">75;94</data>
       <data key="d16">Tadeusza Kościuszki</data>
       <data key="d11">primary</data>
-      <data key="d12">['90', '50']</data>
+      <data key="d12">['50', '90']</data>
       <data key="d9">False</data>
       <data key="d13">True</data>
       <data key="d14">225.42</data>
@@ -3805,7 +3805,7 @@
     </edge>
     <edge source="581904614" target="581904630" id="0">
       <data key="d8">[45663129, 674100588]</data>
-      <data key="d16">['11 Listopada', 'Widok']</data>
+      <data key="d16">['Widok', '11 Listopada']</data>
       <data key="d11">residential</data>
       <data key="d9">False</data>
       <data key="d13">True</data>
@@ -3814,7 +3814,7 @@
     </edge>
     <edge source="581904630" target="581904614" id="0">
       <data key="d8">[45663129, 674100588]</data>
-      <data key="d16">['11 Listopada', 'Widok']</data>
+      <data key="d16">['Widok', '11 Listopada']</data>
       <data key="d11">residential</data>
       <data key="d9">False</data>
       <data key="d13">False</data>
@@ -5229,7 +5229,7 @@
     </edge>
     <edge source="581904904" target="6193873196" id="0">
       <data key="d8">[45663163, 45663165]</data>
-      <data key="d16">['Wrzosowa', 'Różana']</data>
+      <data key="d16">['Różana', 'Wrzosowa']</data>
       <data key="d11">residential</data>
       <data key="d9">False</data>
       <data key="d13">False</data>
@@ -5826,7 +5826,7 @@
     </edge>
     <edge source="581905006" target="1809760752" id="0">
       <data key="d8">[265797358, 45663207]</data>
-      <data key="d16">['Oświecenia', 'Piwna']</data>
+      <data key="d16">['Piwna', 'Oświecenia']</data>
       <data key="d11">residential</data>
       <data key="d9">False</data>
       <data key="d13">False</data>
@@ -6120,9 +6120,9 @@
     </edge>
     <edge source="581905248" target="1852041298" id="0">
       <data key="d8">[947447650, 174534247, 246391628, 45662958, 305353977, 45663002]</data>
-      <data key="d18">['viaduct', 'yes']</data>
+      <data key="d18">['yes', 'viaduct']</data>
       <data key="d10">94</data>
-      <data key="d16">['Jerzego Popiełuszki', 'Księdza Jerzego Popiełuszki']</data>
+      <data key="d16">['Księdza Jerzego Popiełuszki', 'Jerzego Popiełuszki']</data>
       <data key="d11">primary</data>
       <data key="d12">50</data>
       <data key="d9">False</data>
@@ -7832,7 +7832,7 @@
       <data key="d8">[135694377, 683936748]</data>
       <data key="d16">Mikołaja Kopernika</data>
       <data key="d11">tertiary</data>
-      <data key="d12">['30', '50']</data>
+      <data key="d12">['50', '30']</data>
       <data key="d9">False</data>
       <data key="d13">False</data>
       <data key="d14">176.65099999999998</data>
@@ -8871,7 +8871,7 @@
     </edge>
     <edge source="1811540801" target="9964239689" id="0">
       <data key="d8">[1087541629, 170003543]</data>
-      <data key="d16">['Platynowa', 'Perłowa']</data>
+      <data key="d16">['Perłowa', 'Platynowa']</data>
       <data key="d11">residential</data>
       <data key="d9">False</data>
       <data key="d13">False</data>
@@ -8955,13 +8955,13 @@
       <data key="d8">[947447650, 174534247, 246391628, 45662958, 305353977, 45663002]</data>
       <data key="d19">3</data>
       <data key="d10">94</data>
-      <data key="d16">['Jerzego Popiełuszki', 'Księdza Jerzego Popiełuszki']</data>
+      <data key="d16">['Księdza Jerzego Popiełuszki', 'Jerzego Popiełuszki']</data>
       <data key="d11">primary</data>
       <data key="d12">50</data>
       <data key="d9">False</data>
       <data key="d13">False</data>
       <data key="d14">699.6319999999998</data>
-      <data key="d18">['viaduct', 'yes']</data>
+      <data key="d18">['yes', 'viaduct']</data>
       <data key="d15">LINESTRING (20.6044359 49.9642878, 20.6045472 49.9642581, 20.604924 49.9641576, 20.6054217 49.9640402, 20.6057806 49.9639728, 20.6061051 49.9639299, 20.6062424 49.9639117, 20.6066453 49.963881, 20.6070124 49.9638692, 20.6073416 49.9638753, 20.6076977 49.9639033, 20.60804 49.9639415, 20.6080805 49.9639491, 20.6082937 49.9639888, 20.608593 49.9640563, 20.6088657 49.9641347, 20.6091014 49.9642211, 20.6093955 49.9643363, 20.6095994 49.9644338, 20.609771 49.9645194, 20.6100368 49.9646778, 20.6113418 49.9655134, 20.6122311 49.966017, 20.6127908 49.9663015)</data>
     </edge>
     <edge source="1866256057" target="581905382" id="0">
@@ -10485,7 +10485,7 @@
     </edge>
     <edge source="6193873196" target="581904904" id="0">
       <data key="d8">[45663163, 45663165]</data>
-      <data key="d16">['Wrzosowa', 'Różana']</data>
+      <data key="d16">['Różana', 'Wrzosowa']</data>
       <data key="d11">residential</data>
       <data key="d9">False</data>
       <data key="d13">True</data>
@@ -10887,7 +10887,7 @@
       <data key="d19">2</data>
       <data key="d16">Mikołaja Kopernika</data>
       <data key="d11">tertiary</data>
-      <data key="d12">['30', '50']</data>
+      <data key="d12">['50', '30']</data>
       <data key="d9">False</data>
       <data key="d13">True</data>
       <data key="d14">176.651</data>
@@ -10903,7 +10903,7 @@
     </edge>
     <edge source="9964239689" target="1811540801" id="0">
       <data key="d8">[1087541629, 170003543]</data>
-      <data key="d16">['Platynowa', 'Perłowa']</data>
+      <data key="d16">['Perłowa', 'Platynowa']</data>
       <data key="d11">residential</data>
       <data key="d9">False</data>
       <data key="d13">True</data>
@@ -10919,7 +10919,7 @@
       <data key="d14">124.18299999999999</data>
       <data key="d15">LINESTRING (20.6227322 49.9716842, 20.6226845 49.97184, 20.6222513 49.9727566)</data>
     </edge>
-    <data key="d0">2023-06-15 14:13:32</data>
+    <data key="d0">2023-06-20 13:52:49</data>
     <data key="d1">OSMnx 1.3.0</data>
     <data key="d2">epsg:4326</data>
     <data key="d3">True</data>
