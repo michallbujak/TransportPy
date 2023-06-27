@@ -16,6 +16,7 @@ class TaxiRide(Ride):
     """
     def __init__(self, traveller, locations):
         super().__init__([traveller], locations)
+        self.events = []
 
     def __repr__(self):
         return "taxi"

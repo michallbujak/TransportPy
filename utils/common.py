@@ -25,7 +25,7 @@ def initialise_logger(
     :param logger_level: level of information
     :return: logger
     """
-    logging.basicConfig(stream=sys.stdout, format='%(asctime)s-%(levelname)s-%(message)s',
+    logging.basicConfig(stream=sys.stdout, format='%(message)s (%(levelname)s-%(asctime)s)',
                         datefmt='%H:%M:%S', level=logger_level)
     logger = logging.getLogger()
     return logger
@@ -125,6 +125,7 @@ def load_skim(
         logger.info("Successfully read skim matrix")
 
     skim_matrix.columns = [int(t) for t in skim_matrix.columns]
+    city_graph = nx.relabel_nodes(city_graph, {t: int(t) for t in city_graph.nodes})
     logger.warning("Skim matrix and city graphs loaded")
 
     return {"type": "graph", "city_graph": city_graph, "skim_matrix": skim_matrix}
@@ -141,6 +142,18 @@ def load_any_excel(path:str
         return pd.read_excel(path)
     except UnicodeDecodeError:
         return pd.read_csv(path)
+
+
+def str_to_datetime(input_string: str,
+                    str_format: str='%Y-%m-%d %H:%M:%S'
+                    ) -> dt:
+    """
+    Convert string to datetime
+    @param input_string: string with date
+    @param str_format: format of the string
+    @return: return
+    """
+    return dt.strptime(input_string, str_format)
 
 
 def compute_distance(list_of_points: list,
@@ -195,7 +208,7 @@ def compute_path(list_of_points: list,
 
 def move_vehicle_ride(vehicle: Vehicle,
                       ride: Ride,
-                      time: int,
+                      move_time: int,
                       skim: dict,
                       logger: logging.Logger
                       ) -> None:
@@ -203,15 +216,43 @@ def move_vehicle_ride(vehicle: Vehicle,
     Function which is designed to move the vehicle along request route
     :param vehicle: Vehicle object
     :param ride: Ride object
-    :param time: time by which the vehicle is moved
+    :param move_time: time by which the vehicle is moved
     :param skim: dictionary with distances
     :param logger: logging purposes
     @type vehicle: Vehicle
     @type ride: Ride
+    @type move_time: int
+    @type skim: dict
     @type logger: logging.Logger
     """
     avg_speed = vehicle.vehicle_speed
-    time_left = time
+    time_left = move_time
+
+    def foo(_r, _v):
+        curr_time = _v.path.current_time
+        evs = [t for t in _r.locations if t[0] == _v.path.current_position]
+        for ev in evs:
+            if ev[1] == 'o':
+                _r.travellers += [ev[2]]
+                try:
+                    _r.events += [(_v.path.current_time, _v.path.current_position, 'o', ev[2])]
+                except AttributeError:
+                    pass
+                _v.travellers += [ev[2]]
+                try:
+                    logger.info(f"{curr_time}: Traveller {ev[2]} joined vehicle {_v}")
+                    _v.scheduled_travellers.remove([t for t in _v.scheduled_travellers if t.traveller_id == ev[2]][0])
+                except AttributeError:
+                    pass
+            if ev[1] == 'd':
+                _r.travellers.remove(ev[2])
+                _v.travellers.remove(ev[2])
+                logger.info(f"{curr_time}: Traveller {ev[2]} finished trip")
+            if ev[1] == 'a':
+                _v.scheduled_travellers += [ev[2]]
+            _r.locations.remove(ev)
+
+        return _r, _v
 
     while vehicle.path.current_path is not None:
         assert (
@@ -224,19 +265,26 @@ def move_vehicle_ride(vehicle: Vehicle,
         )
         time_required_to_crossroad = \
             distance_to_crossroad / avg_speed - vehicle.path.time_between_crossroads
+        time_required_to_crossroad = int(time_required_to_crossroad)
 
         if time_left < time_required_to_crossroad:
             # not sufficient time to reach the nearest crossroad
+            logger.debug(f"Vehicle {vehicle}: Insufficient time to reach"
+                         f" crossroad {vehicle.path.current_path[1]}")
             vehicle.path.time_between_crossroads = vehicle.path.time_between_crossroads + time_left
             vehicle.path.current_time = vehicle.path.current_time + timedelta(seconds=time_left)
+            ride, vehicle = foo(ride, vehicle)
             break
 
         # sufficient time to reach the nearest crossroad
+        logger.debug(f"{vehicle.path.current_time}: Vehicle {vehicle}: Reached"
+                     f" crossroad {vehicle.path.current_path[1]}")
         vehicle.mileage += distance_to_crossroad
         time_left -= time_required_to_crossroad
         vehicle.path.current_time = vehicle.path.current_time + timedelta(
             seconds=time_required_to_crossroad
         )
+        ride, vehicle = foo(ride, vehicle)
         vehicle.path.current_position = vehicle.path.current_path[1]
         vehicle.path.current_path = vehicle.path.current_path[1:]
         vehicle.path.time_between_crossroads = 0
@@ -247,23 +295,16 @@ def move_vehicle_ride(vehicle: Vehicle,
             vehicle.path.stationary_position = True
             vehicle.available = True
             ride.active = False
+            logger.warning(f"{vehicle.path.current_time}: "
+                           f"Ride {ride} finished with vehicle {vehicle}")
 
         else:
             vehicle.path.nearest_crossroad = vehicle.path.current_path[1]
 
         # Check from the request perspective whether something happens at those nodes
-        events = [t for t in ride.locations if t[0] == vehicle.path.current_position]
-        for event in events:
-            if event[1] == 'o':
-                ride.travellers += [event[2]]
-                vehicle.travellers += [event[2]]
-                vehicle.scheduled_travellers.remove(event[2])
-            if event[1] == 'd':
-                ride.travellers.remove(event[2])
-                vehicle.travellers.remove(event[2])
-            if event[1] == 'a':
-                vehicle.scheduled_travellers += [event[2]]
+        ride, vehicle = foo(ride, vehicle)
 
-    logger.debug(f"Vehicle {vehicle} moved by {time}s")
+    logger.debug(f"{vehicle.path.current_time}:"
+                 f" Vehicle {vehicle} moved by {move_time}s")
 
     return None
