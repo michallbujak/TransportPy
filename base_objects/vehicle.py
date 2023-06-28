@@ -61,6 +61,7 @@ class Vehicle:
 
         # Possibly useful in future applications
         self.mileage = 0
+        self.events = [(start_time, start_node, 's', self.vehicle_id)]
 
     def __repr__(self):
         return f"Vehicle {self.vehicle_id}"

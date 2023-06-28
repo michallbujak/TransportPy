@@ -41,8 +41,12 @@ def load_config(
     :param logger: logger for information
     :return: configuration dictionary
     """
-    with open(path, encoding='utf-8') as json_file:
-        config = json.load(json_file)
+    try:
+        with open(path, encoding='utf-8') as json_file:
+            config = json.load(json_file)
+    except FileNotFoundError:
+        with open('../' + path, encoding='utf-8') as json_file:
+            config = json.load(json_file)
     logger.info(f"Successfully loaded config from {path}")
     return config
 
@@ -131,7 +135,7 @@ def load_skim(
     return {"type": "graph", "city_graph": city_graph, "skim_matrix": skim_matrix}
 
 
-def load_any_excel(path:str
+def load_any_excel(path: str
                    ) -> pd.DataFrame:
     """
     Flexible function to read either .csv or .xlsx
@@ -142,10 +146,15 @@ def load_any_excel(path:str
         return pd.read_excel(path)
     except UnicodeDecodeError:
         return pd.read_csv(path)
+    except FileNotFoundError:
+        try:
+            return pd.read_excel('../' + path)
+        except UnicodeDecodeError:
+            return pd.read_csv(path)
 
 
 def str_to_datetime(input_string: str,
-                    str_format: str='%Y-%m-%d %H:%M:%S'
+                    str_format: str = '%Y-%m-%d %H:%M:%S'
                     ) -> dt:
     """
     Convert string to datetime
@@ -234,6 +243,7 @@ def move_vehicle_ride(vehicle: Vehicle,
         for ev in evs:
             if ev[1] == 'o':
                 _r.travellers += [ev[2]]
+                _v.events.append((_v.path.current_time, _v.path.current_position, 'p', ev[2]))
                 try:
                     _r.events += [(_v.path.current_time, _v.path.current_position, 'o', ev[2])]
                 except AttributeError:
@@ -247,9 +257,11 @@ def move_vehicle_ride(vehicle: Vehicle,
             if ev[1] == 'd':
                 _r.travellers.remove(ev[2])
                 _v.travellers.remove(ev[2])
+                _v.events.append((_v.path.current_time, _v.path.current_position, 'd', ev[2]))
                 logger.info(f"{curr_time}: Traveller {ev[2]} finished trip")
             if ev[1] == 'a':
                 _v.scheduled_travellers += [ev[2]]
+                _v.events.append((_v.path.current_time, _v.path.current_position, 'a', ev[2]))
             _r.locations.remove(ev)
 
         return _r, _v

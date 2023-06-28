@@ -2,6 +2,7 @@
 Script for a basic run for only private taxi rides
 """
 from datetime import datetime as dt
+from datetime import timedelta as td
 
 import utils.common as utc
 from base_objects.dispatcher import Dispatcher
@@ -12,7 +13,7 @@ from base_objects.vehicle import Vehicle
 logger = utc.initialise_logger("INFO")
 
 # Initialise all required data
-initial_config = utc.load_config("data/configs/simulation_configs/simulation_config_test.json", logger)
+initial_config = utc.load_config("../data/configs/simulation_configs/simulation_config_test.json", logger)
 
 requests = utc.load_any_excel(initial_config["requests"])
 vehicles = utc.load_any_excel(initial_config["vehicles"])
@@ -79,4 +80,22 @@ for veh_req in veh_req_times:
     )
     Travellers[veh_req[2]['id']] = traveller
     Dispatcher.assign_taxi(tuple(veh_req[2]), traveller, skim, logger, current_time)
+
+while not all([not r.active for r in Dispatcher.rides['taxi']]):
+    current_time += td(minutes=5)
+    time_between_events = utc.difference_times(last_event_time, current_time)
+    last_event_time = current_time
+
+    for ride in Dispatcher.rides['taxi']:
+        if ride.active:
+            utc.move_vehicle_ride(
+                vehicle=ride.serving_vehicle,
+                ride=ride,
+                move_time=time_between_events,
+                skim=skim,
+                logger=logger
+            )
+
+    for veh in Dispatcher.fleet['taxi']:
+        veh.path.current_time = current_time
 
