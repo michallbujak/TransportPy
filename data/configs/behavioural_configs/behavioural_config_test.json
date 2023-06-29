@@ -1,7 +1,7 @@
 {
 	"VoT": 0.0035,
 	"pickup_delay_sensitivity": 1.1,
-	"pooled_rides":{
+	"pool_rides":{
 		"PfS":{
 			"1": 1.1,
 			"2": 1.15,

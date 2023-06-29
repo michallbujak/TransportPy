@@ -1,5 +1,5 @@
 """
-Class representing on demand travel, where traveller
+Class representing on-demand shared travel, where traveller
 requests a ride from a Dispatcher
 """
 from typing import Any
@@ -10,7 +10,7 @@ from base_objects.ride import Ride
 from utils.common import compute_distance as dist
 
 
-class TaxiRide(Ride):
+class PoolRide(Ride):
     """
     Private on-demand transport
     """
@@ -20,7 +20,7 @@ class TaxiRide(Ride):
         self.events = []
 
     def __repr__(self):
-        return "taxi"
+        return "pool"
 
     def calculate_profitability(self):
         """
@@ -32,6 +32,8 @@ class TaxiRide(Ride):
     def calculate_utility(self,
                           vehicle: Any,
                           traveller: Traveller,
+                          nodes_seq: list,
+                          no_travellers: int,
                           fare: float,
                           skim: dict,
                           **kwargs
@@ -40,17 +42,18 @@ class TaxiRide(Ride):
         Calculate utility for the traveller
         :param vehicle: Vehicle or child class object
         :param traveller: (traveller_id, starting_point, end_point, start_time)
+        :param nodes_seq: nodes to be visited along the route
+        :param no_travellers: number of travellers
         :param fare: fare in monetary units/meter
         :param skim: distances dictionary
-        :param kwargs: consistence with the Ride class
         :return: utility
         """
-        request = traveller.request_details
-        trip_length = dist([request.origin, request.destination], skim)
-        pickup_delay = dist([request.origin, vehicle.path.current_position], skim) \
+        trip_length = dist(nodes_seq, skim)
+        pickup_delay = dist([nodes_seq[0], vehicle.path.current_position], skim) \
                        / vehicle.vehicle_speed
         pref = traveller.behavioural_details
         utility = -trip_length * fare
-        utility -= trip_length / vehicle.vehicle_speed * pref['VoT']
+        utility -= trip_length / vehicle.vehicle_speed * pref['VoT'] * pref['pool_rides'][no_travellers]
         utility -= pickup_delay * pref['VoT'] * pref['pickup_delay_sensitivity']
+        utility -= pref['pool_rides']['PfS_const']
         return utility

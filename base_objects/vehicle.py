@@ -12,6 +12,7 @@ class Positioning:
     """
     current_position: int
     current_time: datetime
+    end_time: datetime or None
     current_path: list or None
     nearest_crossroad: int or None
     time_between_crossroads: int
@@ -28,6 +29,7 @@ class Vehicle:
             vehicle_id: int,
             start_node: int,
             start_time: datetime,
+            end_time: datetime,
             capacity: int = 8,
             vehicle_speed: int = 6
     ):
@@ -35,6 +37,7 @@ class Vehicle:
         :param vehicle_id: id of the vehicle
         :param start_node: node at which vehicle is positioned at a given time (osmnx node id)
         :param start_time: starting time: time at which vehicle appears in start_node
+        :param end_time: time after which no new requests are accepted
         :param capacity: maximal occupancy of the vehicle (number of travellers)
         :param vehicle_speed: average speed of the vehicle
         """
@@ -53,6 +56,7 @@ class Vehicle:
         self.path = Positioning(
             current_position=start_node,
             current_time=start_time,
+            end_time=end_time,
             current_path=None,
             nearest_crossroad=None,
             time_between_crossroads=0,

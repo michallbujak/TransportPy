@@ -1,6 +1,7 @@
 """
 Basic object for managing a ride
 """
+from abc import abstractmethod
 
 
 class Ride:
@@ -18,16 +19,29 @@ class Ride:
         self.profitability = None
         self.active = True
 
-    def calculate_profitability(self):
+    @abstractmethod
+    def calculate_profitability(self, **kwargs):
         """
         Calculate ride's profitability
         Update self. profitability
         """
         raise NotImplementedError("method calculate_profitability must be implemented")
 
-    def calculate_utility(self, traveller, vehicle, fare, skim, *args, **kwargs):
+    @abstractmethod
+    def calculate_utility(self, **kwargs):
         """
         Calculate ride's profitability
         Update self. profitability
         """
         raise NotImplementedError("method calculate_utility must be implemented")
+
+    def __init_subclass__(cls, **kwargs):
+        if cls.calculate_utility == Ride.calculate_utility:
+            raise TypeError(
+               'Subclasses of `Ride` must override the `calculate_utility` method'
+            )
+        if cls.calculate_profitability == Ride.calculate_profitability:
+            raise TypeError(
+               'Subclasses of `Ride` must override the `calculate_profitability` method'
+            )
+        super().__init_subclass__(**kwargs)

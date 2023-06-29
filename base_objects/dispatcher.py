@@ -26,7 +26,10 @@ class Dispatcher:
         self.dispatcher_id = dispatcher_id
         self.fares = fares
         self.fleet = fleet
-        self.rides = {}
+        self.rides = {
+            'taxi': [],
+            'pool': []
+        }
 
     def find_vehicle(self,
                      request: tuple,
@@ -71,6 +74,9 @@ class Dispatcher:
             self.rides['taxi'] = [new_ride]
         else:
             self.rides['taxi'].append(new_ride)
+
+        traveller.utilities['taxi'] = new_ride.calculate_utility(vehicle=new_ride.serving_vehicle, traveller=traveller,
+                                                                 fare=self.fares['taxi'], skim=skim)
 
         logger.warning(f"{current_time}:"
                        f" Traveller {traveller} assigned to vehicle {vehicle}")

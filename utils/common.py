@@ -10,7 +10,7 @@ import networkx as nx
 import logging
 from datetime import datetime as dt
 
-from datetime import timedelta
+from datetime import timedelta, date
 from dataclasses import asdict
 
 from base_objects.vehicle import Vehicle
@@ -25,7 +25,7 @@ def initialise_logger(
     :param logger_level: level of information
     :return: logger
     """
-    logging.basicConfig(stream=sys.stdout, format='%(message)s (%(levelname)s-%(asctime)s)',
+    logging.basicConfig(stream=sys.stdout, format=f'%(message)s (%(asctime)s)',
                         datefmt='%H:%M:%S', level=logger_level)
     logger = logging.getLogger()
     return logger
@@ -45,8 +45,8 @@ def load_config(
         with open(path, encoding='utf-8') as json_file:
             config = json.load(json_file)
     except FileNotFoundError:
-        with open('../' + path, encoding='utf-8') as json_file:
-            config = json.load(json_file)
+        raise FileNotFoundError(f"Check path to the 'config' file"
+                                f" incorrect {path}")
     logger.info(f"Successfully loaded config from {path}")
     return config
 
@@ -86,7 +86,7 @@ def folder_creator(
     except OSError:
         pass
     else:
-        logger.info(f'Creating folder at {path}')
+        logger.warning(f'Creating folder at {path}')
 
 
 def load_skim(
@@ -107,30 +107,30 @@ def load_skim(
     try:
         city_graph = nx.read_graphml(city_config['paths']['city_graph'])
     except FileNotFoundError:
-        logger.info("City graph missing, using osmnx")
-        logger.info(f"Writing the city graph to {city_config['paths']['city_graph']}")
+        logger.warning("City graph missing, using osmnx")
+        logger.warning(f"Writing the city graph to {city_config['paths']['city_graph']}")
         city_graph = ox.graph_from_place(city_config['city'], network_type='drive')
         ox.save_graphml(city_graph, city_config['paths']['city_graph'])
         city_config['paths']['city_graph'] = city_config['paths']['city_graph']
     else:
-        logger.info("Successfully read city graph")
+        logger.warning("Successfully read city graph")
 
     try:
         skim_matrix = pd.read_parquet(city_config['paths']['skim_matrix'])
     except FileNotFoundError:
-        logger.info("Skim matrix missing, calculating...")
+        logger.warning("Skim matrix missing, calculating...")
         skim_matrix = pd.DataFrame(dict(nx.all_pairs_dijkstra_path_length(city_graph, weight='length')))
         skim_matrix.columns = [str(col) for col in skim_matrix.columns]
 
-        logger.info(f"Writing the skim matrix to {city_config['paths']['skim_matrix']}")
+        logger.warning(f"Writing the skim matrix to {city_config['paths']['skim_matrix']}")
         skim_matrix.to_parquet(city_config['paths']['skim_matrix'], compression='brotli')
         city_config['paths']['skim_matrix'] = city_config['paths']['skim_matrix']
     else:
-        logger.info("Successfully read skim matrix")
+        logger.warning("Successfully read skim matrix")
 
     skim_matrix.columns = [int(t) for t in skim_matrix.columns]
     city_graph = nx.relabel_nodes(city_graph, {t: int(t) for t in city_graph.nodes})
-    logger.warning("Skim matrix and city graphs loaded")
+    logger.error("Skim matrix and city graphs loaded")
 
     return {"type": "graph", "city_graph": city_graph, "skim_matrix": skim_matrix}
 
@@ -147,10 +147,7 @@ def load_any_excel(path: str
     except UnicodeDecodeError:
         return pd.read_csv(path)
     except FileNotFoundError:
-        try:
-            return pd.read_excel('../' + path)
-        except UnicodeDecodeError:
-            return pd.read_csv(path)
+        raise FileNotFoundError(f"File xlsx/csv not found in {path}")
 
 
 def str_to_datetime(input_string: str,
@@ -256,6 +253,7 @@ def move_vehicle_ride(vehicle: Vehicle,
                     pass
             if ev[1] == 'd':
                 _r.travellers.remove(ev[2])
+                _r.events.append((_v.path.current_time, _v.path.current_position, 'd', ev[2]))
                 _v.travellers.remove(ev[2])
                 _v.events.append((_v.path.current_time, _v.path.current_position, 'd', ev[2]))
                 logger.info(f"{curr_time}: Traveller {ev[2]} finished trip")
@@ -320,3 +318,97 @@ def move_vehicle_ride(vehicle: Vehicle,
                  f" Vehicle {vehicle} moved by {move_time}s")
 
     return None
+
+
+def post_hoc_analysis(
+        vehicles: list,
+        rides: list,
+        travellers: dict,
+        config: dict,
+        skim: dict,
+        logger: logging.Logger
+) -> None:
+    """
+    Analyse run
+    @param vehicles: list of vehicles
+    @param rides: list of rides
+    @param travellers: list of travellers
+    @param config: simulation configuration
+    @param skim: to compute distances
+    @param logger: logger for logging purposes
+    @return: None
+    """
+    def foo(vehicles_rides, is_vehicle=False):
+        events = [_t.events for _t in vehicles_rides]
+        if is_vehicle:
+            events = [list(item) + [_id] for sublist, _id in
+                      zip(events, [t.vehicle_id for t in vehicles_rides])
+                      for item in sublist]
+        else:
+            events = [item for sublist in events for item in sublist]
+        events = sorted(events, key=lambda x: (x[0], x[3]))
+
+        def foo2(element):
+            t_0 = element[0].strftime('%Y-%m-%d %H:%M:%S')
+            return [t_0] + list(element[1:])
+
+        events = [foo2(t) for t in events]
+        return events
+
+    def foo3(event_list, name, is_vehicle=False):
+        with open(config["output_path"] + str(date.today()) + '/' + name + '_log.txt',
+                  'w', encoding='utf-8') as f:
+            lengths = {
+                0: 20,
+                1: 12,
+                2: 4,
+                3: 12,
+                4: 10
+            }
+            f.write("DATE".ljust(lengths[0]) + " || ")
+            f.write("NODE".ljust(lengths[1]) + " || ")
+            f.write("TYPE".ljust(lengths[2]) + " || ")
+            f.write("TRAVELLER ID".ljust(lengths[3]))
+            if is_vehicle:
+                f.write(" || VEHICLE ID".ljust(lengths[4] + 4))
+            f.write("\n")
+            for _event in event_list:
+                for num, element in enumerate(_event):
+                    if element is None:
+                        element = " "
+                    f.write(str(element).ljust(lengths[num]))
+                    if num != len(_event) - 1:
+                        f.write(" || ")
+                    else:
+                        f.write('\n')
+
+    veh_events = foo(vehicles, True)
+    ride_events = foo(rides)
+
+    folder_creator(config["output_path"] + str(date.today()), logger)
+
+    foo3(veh_events, 'vehicle', True)
+    foo3(ride_events, 'ride')
+
+    # global perspective analysis
+    total_vehicle_mileage = round(sum([_v.mileage for _v in vehicles]), 1)
+    rides_mileage = 0
+    for ride in rides:
+        nodes_visited = []
+        for event in ride.events:
+            if event[2] == 'o' or event[2] == 'd':
+                nodes_visited.append(event[1])
+        rides_mileage += compute_distance(nodes_visited, skim)
+
+    # Utility analysis
+    with open(config["output_path"] + str(date.today()) + '/utility_log.txt',
+              'w', encoding='utf-8') as f:
+        f.write("PAX ID".ljust(10))
+        f.write(" || UTILITIES \n")
+        for pax_id, pax in travellers.items():
+            f.write(str(pax_id).ljust(10) + " || ")
+            for ut_name, ut_val in pax.utilities.items():
+                f.write(f"{ut_name}: {ut_val} |")
+            f.write("\n")
+
+    logger.error("Post-hoc analysis finished, results saved")
