@@ -385,6 +385,7 @@ def post_hoc_analysis(
     veh_events = foo(vehicles, True)
     ride_events = foo(rides)
 
+    folder_creator(config["output_path"], logger)
     folder_creator(config["output_path"] + str(date.today()), logger)
 
     foo3(veh_events, 'vehicle', True)

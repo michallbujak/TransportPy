@@ -33,6 +33,7 @@ fleet = utc.distinguish_fleet(vehicles, logger)
 Dispatcher = Dispatcher(
     dispatcher_id=0,
     fares=simulation_config["fares"]['0'],
+    operating_costs=simulation_config['operating_costs']['0'],
     fleet={'taxi': []}
 )
 

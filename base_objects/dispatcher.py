@@ -21,10 +21,12 @@ class Dispatcher:
     def __init__(self,
                  dispatcher_id: float,
                  fares: dict,
+                 operating_costs: dict,
                  fleet: dict
                  ):
         self.dispatcher_id = dispatcher_id
         self.fares = fares
+        self.operating_costs = operating_costs
         self.fleet = fleet
         self.rides = {
             'taxi': [],
@@ -59,7 +61,12 @@ class Dispatcher:
         locations = [(request[1], 'o', request[0]), (request[2], 'd', request[0])]
         new_ride = TaxiRide([traveller], locations)
         new_ride.serving_vehicle = vehicle
-        new_ride.events.append((vehicle.path.current_time, None, 'a', traveller.traveller_id))
+        new_ride.events.append((vehicle.path.current_time,
+                                vehicle.path.nearest_crossroad if
+                                vehicle.path.nearest_crossroad is not None
+                                else vehicle.path.current_position,
+                                'a',
+                                traveller.traveller_id))
 
         vehicle.available = False
         vehicle.scheduled_travellers = [traveller]

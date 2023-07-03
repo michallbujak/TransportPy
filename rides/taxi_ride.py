@@ -22,12 +22,28 @@ class TaxiRide(Ride):
     def __repr__(self):
         return "taxi"
 
-    def calculate_profitability(self):
+    def calculate_profitability(self,
+                                vehicle: Any,
+                                traveller: Traveller,
+                                fare: float,
+                                operating_cost: float,
+                                skim: dict,
+                                **kwargs
+                                ) -> float:
         """
         Calculate a profitability of a ride
-        :return:
+        :param vehicle: Vehicle or child class object
+        :param traveller: (traveller_id, starting_point, end_point, start_time)
+        :param fare: fare in monetary units/meter
+        :param operating_cost: operating cost in units/meter
+        :param skim: distances dictionary
+        :param kwargs: consistence with the Ride class
+        :return: profit
         """
-        raise NotImplementedError('HH')
+        request = traveller.request_details
+        trip_dist = dist([request.origin, request.destination], skim)
+        pickup_dist = dist([request.origin, vehicle.path.current_position], skim)
+        return trip_dist*fare - (trip_dist+pickup_dist)*operating_cost
 
     def calculate_utility(self,
                           vehicle: Any,

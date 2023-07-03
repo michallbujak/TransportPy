@@ -10,5 +10,11 @@
 			"taxi": 0.0015,
 			"pool_discount": 0.3
 		}
+	},
+	"operating_costs": {
+		"0": {
+			"taxi": 0.0003,
+			"pool": 0.0003
+		}
 	}
 }
