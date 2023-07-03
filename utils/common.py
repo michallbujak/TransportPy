@@ -15,6 +15,7 @@ from dataclasses import asdict
 
 from base_objects.vehicle import Vehicle
 from base_objects.ride import Ride
+from base_objects.dispatcher import Dispatcher
 
 
 def initialise_logger(
@@ -214,6 +215,7 @@ def compute_path(list_of_points: list,
 
 def move_vehicle_ride(vehicle: Vehicle,
                       ride: Ride,
+                      dispatcher: Dispatcher,
                       move_time: int,
                       skim: dict,
                       logger: logging.Logger
@@ -222,11 +224,13 @@ def move_vehicle_ride(vehicle: Vehicle,
     Function which is designed to move the vehicle along request route
     :param vehicle: Vehicle object
     :param ride: Ride object
+    :param dispatcher: Dispatcher object
     :param move_time: time by which the vehicle is moved
     :param skim: dictionary with distances
     :param logger: logging purposes
     @type vehicle: Vehicle
     @type ride: Ride
+    @type dispatcher: Dispatcher
     @type move_time: int
     @type skim: dict
     @type logger: logging.Logger
