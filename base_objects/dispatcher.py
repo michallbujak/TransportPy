@@ -11,6 +11,7 @@ from base_objects.vehicle import Vehicle
 from base_objects.traveller import Traveller
 
 from rides.taxi_ride import TaxiRide
+from rides.pool_ride import PoolRide
 
 
 class Dispatcher:
@@ -33,21 +34,38 @@ class Dispatcher:
             'pool': []
         }
 
-    def find_vehicle(self,
-                     request: tuple,
-                     veh_type: str,
-                     skim: dict
-                     ) -> Vehicle:
+    def find_closest_vehicle(self,
+                             request: tuple,
+                             veh_type: list,
+                             skim: dict,
+                             **kwargs
+                             ) -> Vehicle or None or (dict, Vehicle):
         """
         Find the most suitable vehicle
         """
         node = request[1]
         dist = (1e6, None)
-        for veh in self.fleet[veh_type]:
-            if veh.available:
-                dist_new = utc.compute_distance([node, veh.path.current_position], skim)
-                if dist[0] > dist_new:
-                    dist = (dist_new, veh)
+        pool_flag = kwargs.get('empty_pool', False)
+
+        # Find fitting fleet
+        return_type = kwargs.get('return_type', False)
+        if return_type:
+            by_type_closest = {}
+        for key in veh_type:
+            for veh in self.fleet[key]:
+                if key == 'pool' and pool_flag:
+                    if len(veh.scheduled_travellers) + len(veh.travellers) != 0:
+                        continue
+                if veh.available:
+                    dist_new = utc.compute_distance([node, veh.path.current_position], skim)
+                    if dist[0] > dist_new:
+                        dist = (dist_new, veh)
+            if return_type:
+                by_type_closest[key] = tuple(list(dist))
+                dist = None
+        if return_type:
+            return by_type_closest, dist[1]
+
         return dist[1]
 
     def assign_taxi(self,
@@ -56,8 +74,17 @@ class Dispatcher:
                     skim: dict,
                     logger: logging.Logger,
                     current_time: dt
-                    ) -> Any:
-        vehicle = self.find_vehicle(request, "taxi", skim)
+                    ) -> None:
+        """
+        Assign a taxi ride to a traveller
+        @param request: (traveller_id, origin, destination, request_time)
+        @param traveller: Traveller object
+        @param skim: skim dictionary
+        @param logger: logging purposes
+        @param current_time: for logging purposes
+        @return: None
+        """
+        vehicle = self.find_closest_vehicle(request, ["taxi"], skim)
         locations = [(request[1], 'o', request[0]), (request[2], 'd', request[0])]
         new_ride = TaxiRide([traveller], locations)
         new_ride.serving_vehicle = vehicle
@@ -88,4 +115,70 @@ class Dispatcher:
         logger.warning(f"{current_time}:"
                        f" Traveller {traveller} assigned to vehicle {vehicle}")
 
+    def assign_pool(self,
+                    request: tuple,
+                    traveller: Traveller,
+                    skim: dict,
+                    logger: logging.Logger,
+                    current_time: dt,
+                    **kwargs
+                    ) -> None:
+        """
+        Assigned pooled ride
+        @param request: (traveller_id, origin, destination, request_time)
+        @param traveller: Traveller object
+        @param skim: skim dictionary
+        @param logger: logging purposes
+        @param current_time: for logging purposes
+        @param kwargs: additional settings to choose pooling options
+        @return:
+        """
+        locations = [(request[1], 'o', request[0]), (request[2], 'd', request[0])]
+
+        # Baseline utility (taxi)
+        baseline_taxi = TaxiRide(
+            traveller=traveller,
+            locations=locations
+        )
+        dict_closest, closest_vehicle = self.find_closest_vehicle(
+            request=request,
+            veh_type=['taxi', 'pool'],
+            skim=skim,
+            empty_pool=True,
+            return_type=True
+        )
+        baseline_utility = baseline_taxi.calculate_utility(
+            vehicle=closest_vehicle,
+            traveller=traveller,
+            fare=self.fares['pool'],
+            skim=skim
+        )
+        baseline_profitability = baseline_taxi.calculate_remaining_profitability(
+            vehicle=closest_vehicle,
+            traveller=traveller,
+            fare=self.fares['pool'],
+            operating_cost=self.operating_costs['pool'],
+            skim=skim
+        )
+
+        # Search through ongoing pool rides
+        max_profit = baseline_profitability
+        max_utility = baseline_utility
+        best_pooled = None
+        for ride in self.rides["pool"]:
+            potential_profitability = ride.calculate_remaining_profitability(
+                vehicle=ride.serving_vehicle,
+                fare=self.fares['pool'],
+                share_discount=self.fares['share_discount'],
+                operating_cost=self.operating_costs['pool'],
+                skim=skim,
+            )
+            if potential_profitability > max_profit:
+                if not kwargs.get('attractive_only', False):
+                    best_pooled = ride
+                else:
+                    raise NotImplementedError("Attractive only pooled ride based on utility")
+
+        if best_pooled is not None:
+            pass
 

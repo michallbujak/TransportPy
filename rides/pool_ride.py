@@ -91,16 +91,18 @@ class PoolRide(Ride):
                                      distance: float,
                                      fare: float,
                                      operating_cost: float,
+                                     no_travellers: int,
                                      **kwargs):
         """
         Calculate profitability for a distance
         :param distance: travelled distance
         :param fare: fare in monetary units/meter
         :param operating_cost: operating cost in units/meter
+        :param no_travellers: number of travellers
         return (profits, costs)
         """
         flag = len(self.travellers) >= 1
-        return distance * fare if flag else 0, distance * operating_cost
+        return distance * fare * int(flag) * no_travellers, distance * operating_cost
 
     def calculate_utility(self,
                           vehicle: Any,
@@ -121,9 +123,32 @@ class PoolRide(Ride):
         :param skim: distances dictionary
         :return: utility
         """
-        trip_length = dist(nodes_seq, skim)
-        pickup_delay = dist([nodes_seq[0], vehicle.path.current_position], skim) \
-                       / vehicle.vehicle_speed
+        # Separate part of the trip corresponding to the traveller in question
+        trip_before_pickup = []
+        actual_trip = []
+        flag = False
+        for node in nodes_seq:
+            if node[2] == traveller.traveller_id and flag:
+                actual_trip.append(node)
+                break
+            if node[2] == traveller.traveller_id and not flag:
+                flag = True
+            if flag:
+                actual_trip.append(node)
+            else:
+                trip_before_pickup.append(node)
+
+        # Pick-up
+        if len(trip_before_pickup) >= 1:
+            pickup_delay = dist([vehicle.path.current_position] + trip_before_pickup, skim) \
+                           / vehicle.vehicle_speed
+        else:
+            pickup_delay = 0
+
+        # Trip length
+        trip_length = dist(actual_trip, skim)
+
+        # Utility calculation
         pref = traveller.behavioural_details
         utility = -trip_length * fare
         utility -= trip_length / vehicle.vehicle_speed * pref['VoT'] * pref['pool_rides'][no_travellers]

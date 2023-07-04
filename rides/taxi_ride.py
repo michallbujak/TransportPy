@@ -3,11 +3,12 @@ Class representing on demand travel, where traveller
 requests a ride from a Dispatcher
 """
 from typing import Any
+import utils.common
 
 from base_objects.traveller import Traveller
 from base_objects.ride import Ride
 
-from utils.common import compute_distance as dist
+dist = utils.common.compute_distance
 
 
 class TaxiRide(Ride):
@@ -62,7 +63,7 @@ class TaxiRide(Ride):
         return (profits, costs)
         """
         flag = len(self.travellers) >= 1
-        return distance * fare, distance * operating_cost
+        return distance * fare * int(flag), distance * operating_cost
 
     def calculate_utility(self,
                           vehicle: Any,
