@@ -236,7 +236,7 @@ def move_vehicle_ride(vehicle: Vehicle,
 
     def foo(_r, _v):
         curr_time = _v.path.current_time
-        evs = [t for t in _r.locations if t[0] == _v.path.current_position]
+        evs = [t for t in _r.destination_points if t[0] == _v.path.current_position]
         for ev in evs:
             if ev[1] == 'o':
                 _r.travellers += [ev[2]]
@@ -260,7 +260,7 @@ def move_vehicle_ride(vehicle: Vehicle,
             if ev[1] == 'a':
                 _v.scheduled_travellers += [ev[2]]
                 _v.events.append((_v.path.current_time, _v.path.current_position, 'a', ev[2]))
-            _r.locations.remove(ev)
+            _r.destination_points.remove(ev)
 
         return _r, _v
 

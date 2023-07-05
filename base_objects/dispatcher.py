@@ -7,6 +7,7 @@ from typing import Any
 from datetime import datetime as dt
 
 import utils.common as utc
+import utils.pool_tools
 from base_objects.vehicle import Vehicle
 from base_objects.traveller import Traveller
 
@@ -36,7 +37,7 @@ class Dispatcher:
 
     def find_closest_vehicle(self,
                              request: tuple,
-                             veh_type: list,
+                             veh_type: str,
                              skim: dict,
                              **kwargs
                              ) -> Vehicle or None or (dict, Vehicle):
@@ -48,24 +49,14 @@ class Dispatcher:
         pool_flag = kwargs.get('empty_pool', False)
 
         # Find fitting fleet
-        return_type = kwargs.get('return_type', False)
-        if return_type:
-            by_type_closest = {}
-        for key in veh_type:
-            for veh in self.fleet[key]:
-                if key == 'pool' and pool_flag:
-                    if len(veh.scheduled_travellers) + len(veh.travellers) != 0:
-                        continue
-                if veh.available:
-                    dist_new = utc.compute_distance([node, veh.path.current_position], skim)
-                    if dist[0] > dist_new:
-                        dist = (dist_new, veh)
-            if return_type:
-                by_type_closest[key] = tuple(list(dist))
-                dist = None
-        if return_type:
-            return by_type_closest, dist[1]
-
+        for veh in self.fleet[veh_type]:
+            if veh_type == 'pool' and pool_flag:
+                if len(veh.scheduled_travellers) + len(veh.travellers) != 0:
+                    continue
+            if veh.available:
+                dist_new = utc.compute_distance([node, veh.path.current_position], skim)
+                if dist[0] > dist_new:
+                    dist = (dist_new, veh)
         return dist[1]
 
     def assign_taxi(self,
@@ -84,7 +75,7 @@ class Dispatcher:
         @param current_time: for logging purposes
         @return: None
         """
-        vehicle = self.find_closest_vehicle(request, ["taxi"], skim)
+        vehicle = self.find_closest_vehicle(request, "taxi", skim)
         locations = [(request[1], 'o', request[0]), (request[2], 'd', request[0])]
         new_ride = TaxiRide([traveller], locations)
         new_ride.serving_vehicle = vehicle
@@ -135,50 +126,88 @@ class Dispatcher:
         """
         locations = [(request[1], 'o', request[0]), (request[2], 'd', request[0])]
 
-        # Baseline utility (taxi)
+        # Baseline utility (solo ride)
         baseline_taxi = TaxiRide(
             traveller=traveller,
-            locations=locations
+            destination_points=locations
         )
-        dict_closest, closest_vehicle = self.find_closest_vehicle(
+        closest_vehicle = self.find_closest_vehicle(
             request=request,
-            veh_type=['taxi', 'pool'],
+            veh_type='pool',
             skim=skim,
-            empty_pool=True,
-            return_type=True
+            empty_pool=True
         )
         baseline_utility = baseline_taxi.calculate_utility(
             vehicle=closest_vehicle,
             traveller=traveller,
-            fare=self.fares['pool'],
-            skim=skim
-        )
-        baseline_profitability = baseline_taxi.calculate_remaining_profitability(
-            vehicle=closest_vehicle,
-            traveller=traveller,
-            fare=self.fares['pool'],
-            operating_cost=self.operating_costs['pool'],
+            fare=self.fares['taxi'],
             skim=skim
         )
 
         # Search through ongoing pool rides
-        max_profit = baseline_profitability
+        profitability_relative_increase_max = 0
         max_utility = baseline_utility
+        ods_seq = []
         best_pooled = None
-        for ride in self.rides["pool"]:
-            potential_profitability = ride.calculate_remaining_profitability(
-                vehicle=ride.serving_vehicle,
-                fare=self.fares['pool'],
-                share_discount=self.fares['share_discount'],
-                operating_cost=self.operating_costs['pool'],
-                skim=skim,
-            )
-            if potential_profitability > max_profit:
-                if not kwargs.get('attractive_only', False):
-                    best_pooled = ride
-                else:
-                    raise NotImplementedError("Attractive only pooled ride based on utility")
 
+        for ride in self.rides["pool"]:
+            if len(ride.travellers) == 0:
+                continue
+            destination_points = ride.destination_points + \
+                                 [(request[1], 'o', traveller.traveller_id)] + \
+                                 [(request[2], 'd', traveller.traveller_id)]
+
+            combinations_ods = utils.pool_tools.admissible_future_combinations(destination_points)
+            for combination in combinations_ods:
+                potential_profitability = ride.calculate_remaining_profitability(
+                    vehicle=ride.serving_vehicle,
+                    fare=self.fares['taxi'],
+                    pool_discount=self.fares['pool_discount'],
+                    operating_cost=self.operating_costs['pool'],
+                    skim=skim,
+                    destination_points=combination
+                )
+
+                profitability_relative_increase_new = \
+                    (potential_profitability - ride.profitability.profitability) \
+                    / ride.profitability.profitability
+
+                if profitability_relative_increase_new > profitability_relative_increase_max:
+                    if not kwargs.get('attractive_only', False):
+                        best_pooled = ride
+                        ods_seq = combination
+                        profitability_relative_increase_max = profitability_relative_increase_new
+                    else:
+                        raise NotImplementedError("Attractive only pooled ride based on utility")
+
+        # if there is a fitting ride, add a traveller
         if best_pooled is not None:
-            pass
+            logger.warning(f"{current_time}: {best_pooled} found suitable for traveller {traveller}")
+            best_pooled.add_traveller(
+                traveller=traveller,
+                new_profitability=profitability_relative_increase_max,
+                ods_sequence=ods_seq,
+                skim=skim
+            )
+
+        else:
+            logger.info(f"No ongoing pool rides are attractive for {traveller}")
+            logger.warning(f"{current_time}: Traveller {traveller} assigned to a new "
+                           f"ride with the vehicle {closest_vehicle}")
+            baseline_profitability = baseline_taxi.calculate_remaining_profitability(
+                vehicle=closest_vehicle,
+                traveller=traveller,
+                fare=self.fares['taxi'],
+                operating_cost=self.operating_costs['pool'],
+                skim=skim
+            )
+            new_ride = PoolRide(
+                traveller=traveller,
+                destination_points=[(traveller.request_details.origin, 'o', traveller.traveller_id),
+                                    (traveller.request_details.destination, 'd', traveller.traveller_id)]
+            )
+            new_ride.serving_vehicle = closest_vehicle
+            new_ride.profitability.profitability = baseline_profitability
+            self.rides['pool'].append(new_ride)
+
 

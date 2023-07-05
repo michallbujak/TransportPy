@@ -20,15 +20,15 @@ class Ride:
     def __init__(
             self,
             travellers: list,
-            locations: list
+            destination_points: list
     ):
         """
         @param travellers: list of travellers assigned to the ride
-        @param locations: list of city nodes which will be visited along
+        @param destination_points: list of city nodes which will be visited along
         with what happens at those locations
         """
         self.travellers = travellers
-        self.locations = locations
+        self.destination_points = destination_points
         self.serving_vehicle = None
         self.profitability = Profitability(
             profit=0,

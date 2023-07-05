@@ -16,8 +16,8 @@ class TaxiRide(Ride):
     Private on-demand transport
     """
 
-    def __init__(self, traveller, locations):
-        super().__init__([traveller], locations)
+    def __init__(self, traveller, destination_points):
+        super().__init__([traveller], destination_points)
         self.events = []
 
     def __repr__(self):

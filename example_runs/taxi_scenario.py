@@ -51,22 +51,23 @@ FLAG_FIRST = True
 # Browse chronologically through new vehicles and rides
 for veh_req in veh_req_times:
     current_time = utc.str_to_datetime(veh_req[0])
-    if veh_req[1] == 0:
-        v = veh_req[2]
-        Dispatcher.fleet['taxi'] += [Vehicle(
-            vehicle_id=v['id'],
-            start_node=v['origin'],
-            start_time=utc.str_to_datetime(v['start_time']),
-            end_time=utc.str_to_datetime(v['end_time']),
-            capacity=v['capacity'],
-            vehicle_speed=v['speed']
-        )]
-        continue
 
     if FLAG_FIRST:
         last_event_time = current_time
         FLAG_FIRST = False
-        continue
+        if veh_req[1] == 0:
+            v = veh_req[2]
+            Dispatcher.fleet['taxi'] += [Vehicle(
+                vehicle_id=v['id'],
+                start_node=v['origin'],
+                start_time=utc.str_to_datetime(v['start_time']),
+                end_time=utc.str_to_datetime(v['end_time']),
+                capacity=v['capacity'],
+                vehicle_speed=v['speed']
+            )]
+            continue
+        else:
+            raise NotImplementedError("First must come vehicle not travel request")
 
     time_between_events = utc.difference_times(last_event_time, current_time)
     last_event_time = current_time
@@ -83,6 +84,18 @@ for veh_req in veh_req_times:
 
     for veh in Dispatcher.fleet['taxi']:
         veh.path.current_time = current_time
+
+    if veh_req[1] == 0:
+        v = veh_req[2]
+        Dispatcher.fleet['taxi'] += [Vehicle(
+            vehicle_id=v['id'],
+            start_node=v['origin'],
+            start_time=utc.str_to_datetime(v['start_time']),
+            end_time=utc.str_to_datetime(v['end_time']),
+            capacity=v['capacity'],
+            vehicle_speed=v['speed']
+        )]
+        continue
 
     traveller = Traveller(
         request=tuple(veh_req[2]),
