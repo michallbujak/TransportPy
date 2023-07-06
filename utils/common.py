@@ -216,7 +216,8 @@ def move_vehicle_ride(vehicle: Vehicle,
                       ride: Ride,
                       move_time: int,
                       skim: dict,
-                      logger: logging.Logger
+                      logger: logging.Logger,
+                      **kwargs
                       ) -> None:
     """
     Function which is designed to move the vehicle along request route
@@ -238,29 +239,36 @@ def move_vehicle_ride(vehicle: Vehicle,
         curr_time = _v.path.current_time
         evs = [t for t in _r.destination_points if t[0] == _v.path.current_position]
         for ev in evs:
+            traveller = [t for t in _r.travellers if t.traveller_id == ev[2]][0]
             if ev[1] == 'o':
-                _r.travellers += [ev[2]]
                 _v.events.append((_v.path.current_time, _v.path.current_position, 'p', ev[2]))
                 try:
                     _r.events += [(_v.path.current_time, _v.path.current_position, 'o', ev[2])]
                 except AttributeError:
                     pass
-                _v.travellers += [ev[2]]
+                _v.travellers += [traveller]
                 try:
                     logger.info(f"{curr_time}: Traveller {ev[2]} joined vehicle {_v}")
                     _v.scheduled_travellers.remove([t for t in _v.scheduled_travellers if t.traveller_id == ev[2]][0])
                 except AttributeError:
                     pass
             if ev[1] == 'd':
-                _r.travellers.remove(ev[2])
+                _r.travellers.remove(traveller)
                 _r.events.append((_v.path.current_time, _v.path.current_position, 'd', ev[2]))
-                _v.travellers.remove(ev[2])
+                _v.travellers.remove(traveller)
                 _v.events.append((_v.path.current_time, _v.path.current_position, 'd', ev[2]))
-                logger.info(f"{curr_time}: Traveller {ev[2]} finished trip")
+                logger.info(f"{curr_time}: Traveller {traveller} finished trip")
+
+                if kwargs.get('pool_capacity_freed', False):
+                    _v.available = True
+
             if ev[1] == 'a':
-                _v.scheduled_travellers += [ev[2]]
+                _v.scheduled_travellers += [traveller]
                 _v.events.append((_v.path.current_time, _v.path.current_position, 'a', ev[2]))
             _r.destination_points.remove(ev)
+
+        if len(_r.travellers) == 0:
+            _r.active = False
 
         return _r, _v
 
@@ -299,6 +307,12 @@ def move_vehicle_ride(vehicle: Vehicle,
         vehicle.path.current_path = vehicle.path.current_path[1:]
         vehicle.path.time_between_crossroads = 0
 
+        for trav in vehicle.travellers:
+            if ride.ride_type in trav.distance_travelled.keys():
+                trav.distance_travelled[ride.ride_type] += distance_to_crossroad
+            else:
+                trav.distance_travelled[ride.ride_type] = distance_to_crossroad
+
         if len(vehicle.path.current_path) == 1:
             vehicle.path.current_path = None
             vehicle.path.nearest_crossroad = None
@@ -313,6 +327,9 @@ def move_vehicle_ride(vehicle: Vehicle,
 
         # Check from the request perspective whether something happens at those nodes
         ride, vehicle = foo(ride, vehicle)
+
+    if vehicle.path.current_time >= vehicle.path.end_time:
+        vehicle.available = False
 
     logger.debug(f"{vehicle.path.current_time}:"
                  f" Vehicle {vehicle} moved by {move_time}s")
@@ -338,6 +355,7 @@ def post_hoc_analysis(
     @param logger: logger for logging purposes
     @return: None
     """
+
     def foo(vehicles_rides, is_vehicle=False):
         events = [_t.events for _t in vehicles_rides]
         if is_vehicle:

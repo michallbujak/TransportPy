@@ -16,8 +16,8 @@ class TaxiRide(Ride):
     Private on-demand transport
     """
 
-    def __init__(self, traveller, destination_points):
-        super().__init__([traveller], destination_points)
+    def __init__(self, traveller, destination_points, ride_type):
+        super().__init__([traveller], destination_points, ride_type)
         self.events = []
 
     def __repr__(self):
@@ -42,12 +42,12 @@ class TaxiRide(Ride):
         :return: profit
         """
         request = traveller.request_details
-        if len(self.travellers) >= 1:
+        if len(vehicle.travellers) >= 1:
             trip_dist = dist([vehicle.path.current_position, request.destination], skim)
             pickup_dist = 0
         else:
             trip_dist = dist([request.origin, request.destination], skim)
-            pickup_dist = dist([request.origin, vehicle.path.current_position], skim)
+            pickup_dist = dist([vehicle.path.current_position, request.origin], skim)
         return trip_dist * fare - (trip_dist + pickup_dist) * operating_cost
 
     def calculate_unit_profitability(self,

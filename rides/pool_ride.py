@@ -18,12 +18,12 @@ class PoolRide(Ride):
     Private on-demand transport
     """
 
-    def __init__(self, traveller, destination_points):
-        super().__init__([traveller], destination_points)
+    def __init__(self, traveller, destination_points, ride_type):
+        super().__init__([traveller], destination_points, ride_type)
         self.events = []
 
     def __repr__(self):
-        return "pool"
+        return f"Pool: {self.travellers}"
 
     def calculate_remaining_profitability(self,
                                           vehicle: Vehicle,
@@ -43,49 +43,22 @@ class PoolRide(Ride):
         :param kwargs: consistence with the Ride class
         :return: profit
         """
-        no_paxes = len(vehicle.travellers)
-        costs = dist([vehicle.path.current_position, *[t[0] for t in self.destination_points]], skim) \
-                * operating_cost
         destination_points = kwargs.get('destination_points', self.destination_points)
-
-        # if not pooled
-        if no_paxes == 1:
-            profits = dist([vehicle.path.current_position, *[t[0] for t in destination_points]], skim) \
-                      * fare
-        # if pooled
-        elif no_paxes > 1:
-            profits = dist([vehicle.path.current_position, *[t[0] for t in destination_points]], skim) \
-                      * fare * (1 - pool_discount) * no_paxes
-
-        # vehicle on the way to the first origin
+        additional_traveller = kwargs.get('additional_traveller', None)
+        if additional_traveller is not None:
+            paxes = vehicle.travellers + vehicle.scheduled_travellers + [additional_traveller]
         else:
-            profits = 0
+            paxes = vehicle.travellers + vehicle.scheduled_travellers
 
-        # if only one destination left
-        if len(destination_points) == 1:
-            return profits - costs
+        costs = dist([vehicle.path.current_position, *[t[0] for t in destination_points]], skim) \
+                * operating_cost
 
-        prev_node = destination_points[0]
-        for node_counter in range(len(destination_points[1]) - 1):
-            next_node = destination_points[node_counter + 1]
-
-            if prev_node[1] == 'o':
-                no_paxes += 1
-            elif prev_node[1] == 'd':
-                no_paxes -= 1
-            else:
-                pass
-
-            if no_paxes == 1:
-                profits += dist([prev_node[0], next_node[0]], skim) * fare
-            elif no_paxes >= 1:
-                profits += dist([prev_node[0], next_node[0]], skim) \
-                           * fare * (1 - pool_discount) * no_paxes
-            else:
-                pass
-
-            costs += dist([prev_node[1], next_node[1]], skim) * operating_cost
-            prev_node = next_node
+        profits = 0
+        if len(paxes) == 1:
+            profits = paxes[0].request_details.trip_length * fare
+        else:
+            for pax in paxes:
+                profits += pax.request_details.trip_length * fare * (1 - pool_discount)
 
         return profits - costs
 
@@ -175,8 +148,13 @@ class PoolRide(Ride):
         # Update vehicle
         vehicle = self.serving_vehicle
         vehicle.scheduled_travellers.append(traveller)
+
+        if len(vehicle.scheduled_travellers) + len(vehicle.travellers) == vehicle.maximal_occupancy:
+            vehicle.available = False
+
         vehicle.path.current_path = find_path(
-            list_of_points=[vehicle.path.nearest_crossroad] + ods_sequence,
+            list_of_points=[vehicle.path.nearest_crossroad] +
+                           [t[0] for t in ods_sequence],
             skim=skim
         )
 
@@ -184,4 +162,3 @@ class PoolRide(Ride):
         self.profitability.profitability = new_profitability
         self.travellers.append(traveller)
         self.destination_points = ods_sequence
-

@@ -15,6 +15,7 @@ class RequestDetails:
     origin: int
     destination: int
     request_type: str
+    trip_length: float or None
 
 
 class Traveller:
@@ -36,10 +37,12 @@ class Traveller:
             request_time=request[3],
             origin=request[1],
             destination=request[2],
-            request_type=request[4]
+            request_type=request[4],
+            trip_length=None
         )
         self.behavioural_details = behavioural_details
         self.utilities = {}
+        self.distance_travelled = {}
 
     def __repr__(self):
         return f"Traveller {self.traveller_id}"

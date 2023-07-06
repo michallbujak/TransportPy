@@ -77,7 +77,7 @@ class Dispatcher:
         """
         vehicle = self.find_closest_vehicle(request, "taxi", skim)
         locations = [(request[1], 'o', request[0]), (request[2], 'd', request[0])]
-        new_ride = TaxiRide([traveller], locations)
+        new_ride = TaxiRide([traveller], locations, 'taxi')
         new_ride.serving_vehicle = vehicle
         new_ride.events.append((vehicle.path.current_time,
                                 vehicle.path.nearest_crossroad if
@@ -100,8 +100,12 @@ class Dispatcher:
         else:
             self.rides['taxi'].append(new_ride)
 
-        traveller.utilities['taxi'] = new_ride.calculate_utility(vehicle=new_ride.serving_vehicle, traveller=traveller,
-                                                                 fare=self.fares['taxi'], skim=skim)
+        traveller.utilities['taxi'] = new_ride.calculate_utility(
+            vehicle=new_ride.serving_vehicle,
+            traveller=traveller,
+            fare=self.fares['taxi'],
+            skim=skim
+        )
 
         logger.warning(f"{current_time}:"
                        f" Traveller {traveller} assigned to vehicle {vehicle}")
@@ -129,7 +133,8 @@ class Dispatcher:
         # Baseline utility (solo ride)
         baseline_taxi = TaxiRide(
             traveller=traveller,
-            destination_points=locations
+            destination_points=locations,
+            ride_type='taxi'
         )
         closest_vehicle = self.find_closest_vehicle(
             request=request,
@@ -143,6 +148,13 @@ class Dispatcher:
             fare=self.fares['taxi'],
             skim=skim
         )
+        baseline_profitability = baseline_taxi.calculate_remaining_profitability(
+            vehicle=closest_vehicle,
+            traveller=traveller,
+            fare=self.fares['taxi'],
+            operating_cost=self.operating_costs['pool'],
+            skim=skim
+        )
 
         # Search through ongoing pool rides
         profitability_relative_increase_max = 0
@@ -153,11 +165,12 @@ class Dispatcher:
         for ride in self.rides["pool"]:
             if len(ride.travellers) == 0:
                 continue
-            destination_points = ride.destination_points + \
-                                 [(request[1], 'o', traveller.traveller_id)] + \
-                                 [(request[2], 'd', traveller.traveller_id)]
+            destination_points = list(ride.destination_points)
+            destination_points += [(request[1], 'o', traveller.traveller_id)]
+            destination_points += [(request[2], 'd', traveller.traveller_id)]
 
             combinations_ods = utils.pool_tools.admissible_future_combinations(destination_points)
+
             for combination in combinations_ods:
                 potential_profitability = ride.calculate_remaining_profitability(
                     vehicle=ride.serving_vehicle,
@@ -165,8 +178,12 @@ class Dispatcher:
                     pool_discount=self.fares['pool_discount'],
                     operating_cost=self.operating_costs['pool'],
                     skim=skim,
-                    destination_points=combination
+                    destination_points=combination,
+                    additional_traveller=traveller
                 )
+
+                if potential_profitability - ride.profitability.profitability < baseline_profitability:
+                    continue
 
                 profitability_relative_increase_new = \
                     (potential_profitability - ride.profitability.profitability) \
@@ -182,7 +199,8 @@ class Dispatcher:
 
         # if there is a fitting ride, add a traveller
         if best_pooled is not None:
-            logger.warning(f"{current_time}: {best_pooled} found suitable for traveller {traveller}")
+            logger.warning(f"{current_time}: {best_pooled}"
+                           f" found suitable for traveller {traveller}")
             best_pooled.add_traveller(
                 traveller=traveller,
                 new_profitability=profitability_relative_increase_max,
@@ -191,23 +209,28 @@ class Dispatcher:
             )
 
         else:
-            logger.info(f"No ongoing pool rides are attractive for {traveller}")
+            logger.info(f"{current_time}: No ongoing pool rides are attractive for {traveller}")
             logger.warning(f"{current_time}: Traveller {traveller} assigned to a new "
                            f"ride with the vehicle {closest_vehicle}")
-            baseline_profitability = baseline_taxi.calculate_remaining_profitability(
-                vehicle=closest_vehicle,
-                traveller=traveller,
-                fare=self.fares['taxi'],
-                operating_cost=self.operating_costs['pool'],
-                skim=skim
-            )
+            destination_points = [(traveller.request_details.origin, 'o', traveller.traveller_id),
+                                  (traveller.request_details.destination, 'd', traveller.traveller_id)]
             new_ride = PoolRide(
                 traveller=traveller,
-                destination_points=[(traveller.request_details.origin, 'o', traveller.traveller_id),
-                                    (traveller.request_details.destination, 'd', traveller.traveller_id)]
+                destination_points=destination_points,
+                ride_type='pool'
             )
+            new_ride.active = True
             new_ride.serving_vehicle = closest_vehicle
             new_ride.profitability.profitability = baseline_profitability
             self.rides['pool'].append(new_ride)
 
-
+            veh = new_ride.serving_vehicle
+            veh.path.current_path = utc.compute_path(
+                list_of_points=[veh.path.current_position] +
+                               [t[0] for t in destination_points],
+                skim=skim
+            )
+            veh.path.nearest_crossroad = veh.path.current_path[1]
+            veh.path.current_time = current_time
+            veh.path.stationary_position = False
+            veh.scheduled_travellers.append(traveller)

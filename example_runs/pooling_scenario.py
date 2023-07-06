@@ -15,7 +15,7 @@ os.chdir(os.path.abspath(os.path.join(os.getcwd(), os.pardir)))
 logger = utc.initialise_logger("INFO")
 
 # Initialise configuration
-simulation_config = utc.load_config("data/configs/simulation_configs/simulation_config_test.json", logger)
+simulation_config = utc.load_config("data/configs/simulation_configs/simulation_config_pool.json", logger)
 
 # Read requests and fleet
 requests = utc.load_any_excel(simulation_config["requests"])
@@ -42,7 +42,7 @@ Travellers = {}
 
 # Sort with respect to time
 req_times = [(req['request_time'], 1, req) for num, req in requests.iterrows()]
-veh_times = [(veh['start_time'], 0, veh) for veh in fleet['taxi']]
+veh_times = [(veh['start_time'], 0, veh) for veh in fleet['pool']]
 veh_req_times = sorted(req_times + veh_times, key=lambda x: (x[0], x[1]))
 
 FLAG_FIRST = True
@@ -99,6 +99,10 @@ for veh_req in veh_req_times:
     traveller = Traveller(
         request=tuple(veh_req[2]),
         behavioural_details=behavioural_config
+    )
+    traveller.request_details.trip_length = utc.compute_distance(
+        [traveller.request_details.origin, traveller.request_details.destination],
+        skim
     )
     Travellers[veh_req[2]['id']] = traveller
     Dispatcher.assign_pool(tuple(veh_req[2]), traveller, skim, logger, current_time)

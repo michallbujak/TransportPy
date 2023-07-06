@@ -7,6 +7,9 @@ from dataclasses import dataclass
 
 @dataclass
 class Profitability:
+    """
+    Store information regarding ride's profitability
+    """
     profit: float
     cost: float
     profitability: float or None
@@ -20,7 +23,8 @@ class Ride:
     def __init__(
             self,
             travellers: list,
-            destination_points: list
+            destination_points: list,
+            ride_type: str
     ):
         """
         @param travellers: list of travellers assigned to the ride
@@ -35,6 +39,7 @@ class Ride:
             cost=0,
             profitability=None
         )
+        self.ride_type = ride_type
         self.active = True
 
     @abstractmethod
