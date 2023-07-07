@@ -40,7 +40,7 @@ class Dispatcher:
                              veh_type: str,
                              skim: dict,
                              **kwargs
-                             ) -> Vehicle or None or (dict, Vehicle):
+                             ) -> Vehicle or None:
         """
         Find the most suitable vehicle
         """

@@ -8,6 +8,7 @@ import numpy as np
 import osmnx as ox
 import networkx as nx
 import logging
+import pickle
 from datetime import datetime as dt
 
 from datetime import timedelta, date
@@ -105,12 +106,14 @@ def load_skim(
         raise NotImplementedError("Currently only shortest paths implemented")
 
     try:
-        city_graph = nx.read_graphml(city_config['paths']['city_graph'])
+        # city_graph = nx.read_graphml(city_config['paths']['city_graph'])
+        city_graph = pickle.load(open(city_config['paths']['city_graph'], 'rb'))
     except FileNotFoundError:
         logger.warning("City graph missing, using osmnx")
         logger.warning(f"Writing the city graph to {city_config['paths']['city_graph']}")
         city_graph = ox.graph_from_place(city_config['city'], network_type='drive')
-        ox.save_graphml(city_graph, city_config['paths']['city_graph'])
+        # ox.save_graphml(city_graph, city_config['paths']['city_graph'])
+        pickle.dump(city_graph, open(city_config['paths']['city_graph'], 'wb'))
         city_config['paths']['city_graph'] = city_config['paths']['city_graph']
     else:
         logger.warning("Successfully read city graph")
@@ -169,13 +172,13 @@ def compute_distance(list_of_points: list,
     if len(list_of_points) == 2:
         if list_of_points[0] == list_of_points[1]:
             return 0
-        return skim["skim_matrix"].loc[list_of_points[0], list_of_points[1]]
+        return skim["skim_matrix"].loc[list_of_points[1], list_of_points[0]]
     dist = 0
     current_node = list_of_points[0]
     for node in list_of_points[1:]:
         if node == current_node:
             continue
-        dist += skim["skim_matrix"][current_node][node]
+        dist += skim["skim_matrix"].loc[node, current_node]
         current_node = node
     return dist
 
@@ -199,11 +202,11 @@ def compute_path(list_of_points: list,
         current_node = list_of_points[0]
         path = [current_node]
         for node in list_of_points[1:]:
-            path += nx.shortest_path(
+            path += nx.dijkstra_path(
                 G=skim["city_graph"],
                 source=current_node,
                 target=node,
-                weight='weight'
+                weight='length'
             )[1:]
             current_node = node
     else:
@@ -278,6 +281,7 @@ def move_vehicle_ride(vehicle: Vehicle,
         ), "The path has not been updated, vehicle does not have a path to follow"
 
         vehicle.path.stationary_position = False
+
         distance_to_crossroad = compute_distance(
             [vehicle.path.current_position, vehicle.path.current_path[1]], skim
         )
@@ -294,6 +298,9 @@ def move_vehicle_ride(vehicle: Vehicle,
             ride, vehicle = foo(ride, vehicle)
             break
 
+        # First check if something happens at the initial node
+        ride, vehicle = foo(ride, vehicle)
+
         # sufficient time to reach the nearest crossroad
         logger.debug(f"{vehicle.path.current_time}: Vehicle {vehicle}: Reached"
                      f" crossroad {vehicle.path.current_path[1]}")
@@ -302,7 +309,6 @@ def move_vehicle_ride(vehicle: Vehicle,
         vehicle.path.current_time = vehicle.path.current_time + timedelta(
             seconds=time_required_to_crossroad
         )
-        ride, vehicle = foo(ride, vehicle)
         vehicle.path.current_position = vehicle.path.current_path[1]
         vehicle.path.current_path = vehicle.path.current_path[1:]
         vehicle.path.time_between_crossroads = 0
@@ -312,6 +318,8 @@ def move_vehicle_ride(vehicle: Vehicle,
                 trav.distance_travelled[ride.ride_type] += distance_to_crossroad
             else:
                 trav.distance_travelled[ride.ride_type] = distance_to_crossroad
+
+        ride, vehicle = foo(ride, vehicle)
 
         if len(vehicle.path.current_path) == 1:
             vehicle.path.current_path = None
@@ -418,6 +426,17 @@ def post_hoc_analysis(
             if event[2] == 'o' or event[2] == 'd':
                 nodes_visited.append(event[1])
         rides_mileage += compute_distance(nodes_visited, skim)
+
+    with open(config["output_path"] + str(date.today()) + '/traveller_log.txt',
+              'w', encoding='utf-8') as f:
+        f.write("PAX ID".ljust(10))
+        f.write(" || REQUEST LENGTH || TRIP LENGTH \n")
+        for pax_id, pax in travellers.items():
+            f.write(str(pax_id).ljust(10)  + " || ")
+            f.write(str(round(pax.request_details.trip_length)).ljust(14) + " || ")
+            for trip_name, trip_len in pax.distance_travelled.items():
+                f.write(f"{trip_name}: {round(trip_len)} |")
+            f.write("\n")
 
     # Utility analysis
     with open(config["output_path"] + str(date.today()) + '/utility_log.txt',

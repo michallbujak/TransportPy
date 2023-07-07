@@ -149,11 +149,12 @@ class PoolRide(Ride):
         vehicle = self.serving_vehicle
         vehicle.scheduled_travellers.append(traveller)
 
-        if len(vehicle.scheduled_travellers) + len(vehicle.travellers) == vehicle.maximal_occupancy:
+        if len(vehicle.scheduled_travellers) + len(vehicle.travellers) >= vehicle.maximal_occupancy:
             vehicle.available = False
 
         vehicle.path.current_path = find_path(
-            list_of_points=[vehicle.path.nearest_crossroad] +
+            list_of_points=[vehicle.path.current_position] +
+                           [vehicle.path.nearest_crossroad] +
                            [t[0] for t in ods_sequence],
             skim=skim
         )

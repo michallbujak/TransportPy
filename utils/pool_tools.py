@@ -12,7 +12,7 @@ def admissible_future_combinations(ods):
     admissible_combinations = []
 
     def check_combination(comb):
-        if comb[-2][0] == 'o':
+        if comb[-2][1] == 'o':
             return False
         for num, element in enumerate(comb):
             if element[1] == 'd':
