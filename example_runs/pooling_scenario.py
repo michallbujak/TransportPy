@@ -73,12 +73,16 @@ for veh_req in veh_req_times:
 
     for ride in Dispatcher.rides['pool']:
         if ride.active:
+            fare = simulation_config["fares"][str(Dispatcher.dispatcher_id)][ride.ride_type]
+            op_costs = simulation_config["operating_costs"][str(Dispatcher.dispatcher_id)][ride.ride_type]
             utc.move_vehicle_ride(
                 vehicle=ride.serving_vehicle,
                 ride=ride,
                 move_time=time_between_events,
                 skim=skim,
-                logger=logger
+                logger=logger,
+                fare=fare,
+                operating_costs=op_costs
             )
 
     for veh in Dispatcher.fleet['pool']:
@@ -120,12 +124,16 @@ while not all(not r.active for r in Dispatcher.rides['pool']):
 
     for ride in Dispatcher.rides['pool']:
         if ride.active:
+            fare = simulation_config["fares"][str(Dispatcher.dispatcher_id)][ride.ride_type]
+            op_costs = simulation_config["operating_costs"][str(Dispatcher.dispatcher_id)][ride.ride_type]
             utc.move_vehicle_ride(
                 vehicle=ride.serving_vehicle,
                 ride=ride,
                 move_time=time_between_events,
                 skim=skim,
-                logger=logger
+                logger=logger,
+                fare=fare,
+                operating_costs=op_costs
             )
 
     for veh in Dispatcher.fleet['pool']:

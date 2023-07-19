@@ -228,6 +228,7 @@ def move_vehicle_ride(vehicle: Vehicle,
     :param ride: Ride object
     :param move_time: time by which the vehicle is moved
     :param skim: dictionary with distances
+    :param simulation_config: simulation configuration
     :param logger: logging purposes
     @type vehicle: Vehicle
     @type ride: Ride
@@ -235,10 +236,7 @@ def move_vehicle_ride(vehicle: Vehicle,
     @type skim: dict
     @type logger: logging.Logger
     """
-    avg_speed = vehicle.vehicle_speed
-    time_left = move_time
-
-    def foo(_r, _v):
+    def check_if_event(_r, _v):
         curr_time = _v.path.current_time
         evs = [t for t in _r.destination_points if t[0] == _v.path.current_position]
         for ev in evs:
@@ -275,6 +273,9 @@ def move_vehicle_ride(vehicle: Vehicle,
 
         return _r, _v
 
+    avg_speed = vehicle.vehicle_speed
+    time_left = move_time
+
     while vehicle.path.current_path is not None:
         assert (
                 vehicle.path.nearest_crossroad is not None
@@ -295,11 +296,11 @@ def move_vehicle_ride(vehicle: Vehicle,
                          f" crossroad {vehicle.path.current_path[1]}")
             vehicle.path.time_between_crossroads = vehicle.path.time_between_crossroads + time_left
             vehicle.path.current_time = vehicle.path.current_time + timedelta(seconds=time_left)
-            ride, vehicle = foo(ride, vehicle)
+            ride, vehicle = check_if_event(ride, vehicle)
             break
 
         # First check if something happens at the initial node
-        ride, vehicle = foo(ride, vehicle)
+        ride, vehicle = check_if_event(ride, vehicle)
 
         # sufficient time to reach the nearest crossroad
         logger.debug(f"{vehicle.path.current_time}: Vehicle {vehicle}: Reached"
@@ -313,13 +314,22 @@ def move_vehicle_ride(vehicle: Vehicle,
         vehicle.path.current_path = vehicle.path.current_path[1:]
         vehicle.path.time_between_crossroads = 0
 
+        # Update traveller detailed movement
         for trav in vehicle.travellers:
             if ride.ride_type in trav.distance_travelled.keys():
                 trav.distance_travelled[ride.ride_type] += distance_to_crossroad
             else:
                 trav.distance_travelled[ride.ride_type] = distance_to_crossroad
 
-        ride, vehicle = foo(ride, vehicle)
+        # Update profits and costs
+        fare = kwargs.get("fare", False)
+        op_costs = kwargs.get("operating_costs", False)
+        if fare and op_costs:
+            no_paxes = len(vehicle.travellers)
+            ride.profitability.profit += distance_to_crossroad*no_paxes*fare
+            ride.profitability.cost += distance_to_crossroad*op_costs
+
+        ride, vehicle = check_if_event(ride, vehicle)
 
         if len(vehicle.path.current_path) == 1:
             vehicle.path.current_path = None
@@ -334,7 +344,7 @@ def move_vehicle_ride(vehicle: Vehicle,
             vehicle.path.nearest_crossroad = vehicle.path.current_path[1]
 
         # Check from the request perspective whether something happens at those nodes
-        ride, vehicle = foo(ride, vehicle)
+        ride, vehicle = check_if_event(ride, vehicle)
 
     if vehicle.path.current_time >= vehicle.path.end_time:
         vehicle.available = False
@@ -429,14 +439,20 @@ def post_hoc_analysis(
 
     with open(config["output_path"] + str(date.today()) + '/traveller_log.txt',
               'w', encoding='utf-8') as f:
+        req_length = 0
+        actual_length = 0
         f.write("PAX ID".ljust(10))
         f.write(" || REQUEST LENGTH || TRIP LENGTH \n")
         for pax_id, pax in travellers.items():
-            f.write(str(pax_id).ljust(10)  + " || ")
+            f.write(str(pax_id).ljust(10) + " || ")
             f.write(str(round(pax.request_details.trip_length)).ljust(14) + " || ")
+            req_length += round(pax.request_details.trip_length)
             for trip_name, trip_len in pax.distance_travelled.items():
                 f.write(f"{trip_name}: {round(trip_len)} |")
+                actual_length += trip_len
             f.write("\n")
+        f.write("OVERALL".ljust(10) + " || " + str(round(req_length)).ljust(14))
+        f.write(" || " + str(round(actual_length)))
 
     # Utility analysis
     with open(config["output_path"] + str(date.today()) + '/utility_log.txt',
