@@ -24,6 +24,7 @@ vehicles = utc.load_any_excel(simulation_config["vehicles"])
 # Read behavioural configuration and city parameters
 city_config = utc.load_config(simulation_config["city_config"], logger)
 behavioural_config = utc.load_config(simulation_config["behavioural_config"], logger)
+fares_config = utc.load_config(simulation_config["fares_config"], logger)
 skim = utc.load_skim(city_config, logger)
 
 # Distinguish different types of fleet
@@ -32,8 +33,8 @@ fleet = utc.distinguish_fleet(vehicles, logger)
 # Initialise Dispatcher
 Dispatcher = TaxiDispatcher(
     dispatcher_id=0,
-    fares=simulation_config["fares"]['0'],
-    operating_costs=simulation_config['operating_costs']['0'],
+    fares=fares_config["fares"]['0'],
+    operating_costs=fares_config['operating_costs']['0'],
     fleet={'pool': []}
 )
 
@@ -73,8 +74,8 @@ for veh_req in veh_req_times:
 
     for ride in Dispatcher.rides['pool']:
         if ride.active:
-            fare = simulation_config["fares"][str(Dispatcher.dispatcher_id)][ride.ride_type]
-            op_costs = simulation_config["operating_costs"][str(Dispatcher.dispatcher_id)][ride.ride_type]
+            fare = fares_config["fares"][str(Dispatcher.dispatcher_id)][ride.ride_type]
+            op_costs = fares_config["operating_costs"][str(Dispatcher.dispatcher_id)][ride.ride_type]
             utc.move_vehicle_ride(
                 vehicle=ride.serving_vehicle,
                 ride=ride,
@@ -124,8 +125,8 @@ while not all(not r.active for r in Dispatcher.rides['pool']):
 
     for ride in Dispatcher.rides['pool']:
         if ride.active:
-            fare = simulation_config["fares"][str(Dispatcher.dispatcher_id)][ride.ride_type]
-            op_costs = simulation_config["operating_costs"][str(Dispatcher.dispatcher_id)][ride.ride_type]
+            fare = fares_config["fares"][str(Dispatcher.dispatcher_id)][ride.ride_type]
+            op_costs = fares_config["operating_costs"][str(Dispatcher.dispatcher_id)][ride.ride_type]
             utc.move_vehicle_ride(
                 vehicle=ride.serving_vehicle,
                 ride=ride,

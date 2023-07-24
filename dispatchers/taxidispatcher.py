@@ -26,7 +26,7 @@ class TaxiDispatcher(Dispatcher):
                  dispatcher_id: float,
                  fares: dict,
                  operating_costs: dict,
-                 fleet: dict
+                 fleet: dict or None = None
                  ):
         super().__init__(dispatcher_id, fares, operating_costs, fleet)
         self.rides = {

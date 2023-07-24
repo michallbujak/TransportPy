@@ -15,7 +15,7 @@ class Dispatcher:
                  dispatcher_id: float,
                  fares: dict,
                  operating_costs: dict,
-                 fleet: dict
+                 fleet: dict or None = None
                  ):
         self.dispatcher_id = dispatcher_id
         self.fares = fares

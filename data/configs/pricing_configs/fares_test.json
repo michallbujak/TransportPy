@@ -1,0 +1,15 @@
+{
+    "fares": {
+        "0": {
+          "taxi": 0.0015,
+          "pool": 0.0012,
+          "pool_discount": 0.25
+        }
+    },
+	"operating_costs": {
+		"0": {
+			"taxi": 0.0008,
+			"pool": 0.0008
+		}
+	}
+}

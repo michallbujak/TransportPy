@@ -2,17 +2,16 @@
 import json
 import os
 import sys
+import pickle
+import logging
+
+from datetime import datetime as dt
+from datetime import timedelta, date
 
 import pandas as pd
 import numpy as np
 import osmnx as ox
 import networkx as nx
-import logging
-import pickle
-from datetime import datetime as dt
-
-from datetime import timedelta, date
-from dataclasses import asdict
 
 from base_objects.vehicle import Vehicle
 from base_objects.ride import Ride
@@ -34,7 +33,7 @@ def initialise_logger(
 
 def load_config(
         path: str,
-        logger: logging.Logger
+        logger: logging.Logger or None = None
 ) -> dict:
     """
     Load configuration files from .json format
@@ -45,10 +44,11 @@ def load_config(
     try:
         with open(path, encoding='utf-8') as json_file:
             config = json.load(json_file)
-    except FileNotFoundError:
-        raise FileNotFoundError(f"Check path to the 'config' file"
-                                f" incorrect {path}")
-    logger.info(f"Successfully loaded config from {path}")
+    except FileNotFoundError as exc:
+        raise exc
+
+    if logger is not None:
+        logger.info(f"Successfully loaded config from {path}")
     return config
 
 
@@ -63,11 +63,11 @@ def distinguish_fleet(
     :return: fleet with assigned types (dict)
     """
     types = np.unique(np.array(vehicles["type"]))
-    fleet = dict()
-    for t in types:
-        fleet[t] = []
-        for num, veh in vehicles.loc[vehicles["type"] == t].iterrows():
-            fleet[t].append(veh)
+    fleet = {}
+    for _type in types:
+        fleet[_type] = []
+        for num, veh in vehicles.loc[vehicles["type"] == _type].iterrows():
+            fleet[_type].append(veh)
     logger.warning("Fleet assigned by types")
     return fleet
 
@@ -149,8 +149,8 @@ def load_any_excel(path: str
         return pd.read_excel(path)
     except UnicodeDecodeError:
         return pd.read_csv(path)
-    except FileNotFoundError:
-        raise FileNotFoundError(f"File xlsx/csv not found in {path}")
+    except FileNotFoundError as exc:
+        raise exc
 
 
 def str_to_datetime(input_string: str,
@@ -163,6 +163,22 @@ def str_to_datetime(input_string: str,
     @return: return
     """
     return dt.strptime(input_string, str_format)
+
+
+def initialise_simulation(
+        simulation_path: str
+) -> tuple:
+    simulation_config = load_config(simulation_path, None)
+    logger = initialise_logger("INFO")
+    requests = load_any_excel(simulation_config["requests"])
+    vehicles = load_any_excel(simulation_config["vehicles"])
+    city_config = load_config(simulation_config["city_config"], logger)
+    behavioural_config = load_config(simulation_config["behavioural_config"], logger)
+    fare_config = load_config(simulation_config["fares_config"], logger)
+    skim = load_skim(city_config, logger)
+    fleet = distinguish_fleet(vehicles, logger)
+    return simulation_config, logger, requests, vehicles, city_config, \
+        behavioural_config, skim, fleet
 
 
 def compute_distance(list_of_points: list,
@@ -184,13 +200,13 @@ def compute_distance(list_of_points: list,
 
 
 def difference_times(time1, time2):
-    def foo(time):
+    def amend_time_type(time):
         if isinstance(time, str):
             return dt.strptime(time, '%Y-%m-%d %H:%M:%S')
         return time
 
-    time1 = foo(time1)
-    time2 = foo(time2)
+    time1 = amend_time_type(time1)
+    time2 = amend_time_type(time2)
     return (time2 - time1).total_seconds()
 
 
@@ -236,6 +252,7 @@ def move_vehicle_ride(vehicle: Vehicle,
     @type skim: dict
     @type logger: logging.Logger
     """
+
     def check_if_event(_r, _v):
         curr_time = _v.path.current_time
         evs = [t for t in _r.destination_points if t[0] == _v.path.current_position]
@@ -326,8 +343,8 @@ def move_vehicle_ride(vehicle: Vehicle,
         op_costs = kwargs.get("operating_costs", False)
         if fare and op_costs:
             no_paxes = len(vehicle.travellers)
-            ride.profitability.profit += distance_to_crossroad*no_paxes*fare
-            ride.profitability.cost += distance_to_crossroad*op_costs
+            ride.profitability.profit += distance_to_crossroad * no_paxes * fare
+            ride.profitability.cost += distance_to_crossroad * op_costs
 
         ride, vehicle = check_if_event(ride, vehicle)
 
@@ -374,7 +391,7 @@ def post_hoc_analysis(
     @return: None
     """
 
-    def foo(vehicles_rides, is_vehicle=False):
+    def create_event_list(vehicles_rides, is_vehicle=False):
         events = [_t.events for _t in vehicles_rides]
         if is_vehicle:
             events = [list(item) + [_id] for sublist, _id in
@@ -391,7 +408,7 @@ def post_hoc_analysis(
         events = [foo2(t) for t in events]
         return events
 
-    def foo3(event_list, name, is_vehicle=False):
+    def format_and_save_event_list(event_list, name, is_vehicle=False):
         with open(config["output_path"] + str(date.today()) + '/' + name + '_log.txt',
                   'w', encoding='utf-8') as f:
             lengths = {
@@ -418,26 +435,16 @@ def post_hoc_analysis(
                     else:
                         f.write('\n')
 
-    veh_events = foo(vehicles, True)
-    ride_events = foo(rides)
+    veh_events = create_event_list(vehicles, True)
+    ride_events = create_event_list(rides)
 
     folder_creator(config["output_path"], logger)
     folder_creator(config["output_path"] + str(date.today()), logger)
 
-    foo3(veh_events, 'vehicle', True)
-    foo3(ride_events, 'ride')
+    format_and_save_event_list(veh_events, 'vehicle', True)
+    format_and_save_event_list(ride_events, 'ride')
 
-    # global perspective analysis
-    total_vehicle_mileage = round(sum([_v.mileage for _v in vehicles]), 1)
-    rides_mileage = 0
-    for ride in rides:
-        nodes_visited = []
-        for event in ride.events:
-            if event[2] == 'o' or event[2] == 'd':
-                nodes_visited.append(event[1])
-        rides_mileage += compute_distance(nodes_visited, skim)
-
-    with open(config["output_path"] + str(date.today()) + '/traveller_log.txt',
+    with open(config["output_path"] + str(date.today()) + '/traveller_results.txt',
               'w', encoding='utf-8') as f:
         req_length = 0
         actual_length = 0
@@ -455,7 +462,7 @@ def post_hoc_analysis(
         f.write(" || " + str(round(actual_length)))
 
     # Utility analysis
-    with open(config["output_path"] + str(date.today()) + '/utility_log.txt',
+    with open(config["output_path"] + str(date.today()) + '/utility_results.txt',
               'w', encoding='utf-8') as f:
         f.write("PAX ID".ljust(10))
         f.write(" || UTILITIES \n")
@@ -464,5 +471,43 @@ def post_hoc_analysis(
             for ut_name, ut_val in pax.utilities.items():
                 f.write(f"{ut_name}: {ut_val} |")
             f.write("\n")
+
+    # Global perspective analysis
+    # Mileage
+    total_vehicle_mileage = round(sum(_v.mileage for _v in vehicles), 1)
+    rides_mileage = 0
+    for ride in rides:
+        nodes_visited = []
+        for event in ride.events:
+            if event[2] == 'o' or event[2] == 'd':
+                nodes_visited.append(event[1])
+        rides_mileage += compute_distance(nodes_visited, skim)
+
+    traveller_request_distance = 0
+    for pax in travellers.values():
+        traveller_request_distance += pax.request_details.trip_length
+
+    # profits
+    profits = 0
+    costs = 0
+    for ride in rides:
+        profits += ride.profitability.profit
+        costs += ride.profitability.cost
+
+    rides_mileage = round(rides_mileage, 1)
+    traveller_request_distance = round(traveller_request_distance, 1)
+    profits = round(profits, 3)
+    costs = round(costs, 3)
+
+    with open(config["output_path"] + str(date.today()) + '/general_results.txt',
+              'w', encoding='utf-8') as f:
+        f.write("Total vehicle mileage: ".ljust(25) + str(total_vehicle_mileage) + '\n')
+        f.write("Total rides mileage: ".ljust(25) + str(rides_mileage) + '\n')
+        f.write("Total requests mileage: ".ljust(25) + str(traveller_request_distance) + '\n')
+        f.write("Mileage reduction (m): ".ljust(25) + str(round(traveller_request_distance - rides_mileage, 1)) + '\n')
+        f.write("Mileage reduction (%): ".ljust(25) + str(round(100*(traveller_request_distance - rides_mileage)
+                                                                / traveller_request_distance, 2)) + '\n')
+        f.write("Total profits: ".ljust(25) + str(profits) + '\n')
+        f.write("Total costs: ".ljust(25) + str(costs))
 
     logger.error("Post-hoc analysis finished, results saved")

@@ -18,6 +18,15 @@ class RequestDetails:
     trip_length: float or None
 
 
+@dataclass
+class ServiceDetails:
+    """
+    Store information regarding service, mainly whether the traveller drops
+    """
+    resigned: bool
+    waiting_time: float or None
+
+
 class Traveller:
     """
     Basic agent in the simulation
@@ -43,9 +52,15 @@ class Traveller:
         self.behavioural_details = behavioural_details
         self.utilities = {}
         self.distance_travelled = {}
+        self.service_details = ServiceDetails(
+            resigned=False,
+            waiting_time=0
+        )
 
     def __repr__(self):
+        """ Way to represent travellers in the system """
         return f"Traveller {self.traveller_id}"
 
     def update_utility(self, key, val):
+        """ Update utility value """
         self.utilities[key] = val

@@ -1,21 +1,10 @@
 {
 	"city_config": "data/configs/city_configs/Brzesko/Brzesko_config.json",
 	"behavioural_config": "data/configs/behavioural_configs/behavioural_config_test.json",
+	"fares_config": "data/configs/pricing_configs/fares_test.json",
 	"path_results": "data/results/",
 	"requests": "data/requests/Brzesko/Brzesko_requests_pool.xlsx",
 	"vehicles": "data/vehicles/Brzesko/Brzesko_vehicles_pool.xlsx",
 	"output_path": "data/results/",
-	"fares": {
-		"0": {
-			"taxi": 0.0015,
-			"pool": 0.0012,
-			"pool_discount": 0.25
-		}
-	},
-	"operating_costs": {
-		"0": {
-			"taxi": 0.0008,
-			"pool": 0.0008
-		}
-	}
+	"logger_level": "INFO"
 }
