@@ -5,6 +5,8 @@ Traveller class: agent in simulation
 from datetime import datetime
 from dataclasses import dataclass
 
+from utils.common import compute_distance
+
 
 @dataclass
 class RequestDetails:
@@ -60,6 +62,13 @@ class Traveller:
     def __repr__(self):
         """ Way to represent travellers in the system """
         return f"Traveller {self.traveller_id}"
+
+    def calculate_trip_length(self, skim: dict):
+        """ Calculate distance from origin to destination """
+        self.request_details.trip_length = compute_distance(
+            [self.request_details.origin, self.request_details.destination],
+            skim
+        )
 
     def update_utility(self, key, val):
         """ Update utility value """

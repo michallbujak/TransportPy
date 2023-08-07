@@ -6,6 +6,8 @@ import logging
 from typing import Any
 from datetime import datetime as dt
 
+import numpy as np
+
 import utils.common as utc
 import utils.pool_tools
 
@@ -23,16 +25,14 @@ class TaxiDispatcher(Dispatcher):
     """
 
     def __init__(self,
-                 dispatcher_id: float,
+                 dispatcher_id: float or str,
                  fares: dict,
                  operating_costs: dict,
                  fleet: dict or None = None
                  ):
         super().__init__(dispatcher_id, fares, operating_costs, fleet)
-        self.rides = {
-            'taxi': [],
-            'pool': []
-        }
+        self.fleet = {k: [] for k in np.unique(fleet['type'])} if fleet is not None else None
+        self.rides = {k: [] for k in np.unique(fleet['type'])} if fleet is not None else None
 
     def find_closest_vehicle(self,
                              request: tuple,
@@ -116,7 +116,7 @@ class TaxiDispatcher(Dispatcher):
                     logger: logging.Logger,
                     current_time: dt,
                     **kwargs
-                    ) -> None:
+                    ) -> bool:
         """
         Assigned pooled ride
         @param request: (traveller_id, origin, destination, request_time)
@@ -141,6 +141,10 @@ class TaxiDispatcher(Dispatcher):
             skim=skim,
             empty_pool=True
         )
+
+        if closest_vehicle is None:
+            return False
+
         baseline_utility = baseline_taxi.calculate_utility(
             vehicle=closest_vehicle,
             traveller=traveller,
@@ -233,3 +237,5 @@ class TaxiDispatcher(Dispatcher):
             veh.path.current_time = current_time
             veh.path.stationary_position = False
             veh.scheduled_travellers.append(traveller)
+
+        return True

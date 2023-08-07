@@ -9,5 +9,6 @@
 			"4": 1.4
 		},
 		"PfS_const": 0
-	}
+	},
+	"maximal_waiting": 600
 }

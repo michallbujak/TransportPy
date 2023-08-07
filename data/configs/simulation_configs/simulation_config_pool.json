@@ -6,5 +6,7 @@
 	"requests": "data/requests/Brzesko/Brzesko_requests_pool.xlsx",
 	"vehicles": "data/vehicles/Brzesko/Brzesko_vehicles_pool.xlsx",
 	"output_path": "data/results/",
-	"logger_level": "INFO"
+	"logger_level": "INFO",
+	"taxi_operators": ["fake_uber"],
+	"refresh_density": 60
 }
