@@ -1,5 +1,6 @@
 from itertools import permutations
 import time
+from collections import Counter
 
 
 # def admissible_future_combinations(
@@ -53,42 +54,12 @@ def admissible_future_combinations(
     ods_dict = {(od, pax): (node, od, pax) for node, od, pax in ods}
     ods_mini = [(od, pax) for node, od, pax in ods]
 
-    def _permutations(iterable):
-        pool = tuple(iterable)
-        n = len(pool)
-        indices = list(range(n))
-        cycles = list(range(n, 0, -1))
-        yield tuple(pool[i] for i in indices)
-        while n:
-            for i in reversed(range(n)):
-                cycles[i] -= 1
-                if cycles[i] == 0:
-                    indices[i:] = indices[i + 1:] + indices[i:i + 1]
-                    cycles[i] = n - i
-                else:
-                    j = cycles[i]
-                    indices[i], indices[-j] = indices[-j], indices[i]
-                    yield tuple(pool[i] for i in indices[:n])
-                    break
-            else:
-                return
+    seq_paxes = [t for n, o, t in ods]
+    unique = [k for k, v in Counter(seq_paxes).items() if v == 1]
 
-    starting_points = []
-    for od in ods_mini:
-        if od[0] == 'o':
-            starting_points.append(od)
-        else:
-            if not ('o', od[1]) in ods_mini:
-                starting_points.append(od)
+    combinations = set(permutations(seq_paxes))
 
-    output = []
-    for n1, s1 in enumerate(starting_points):
-        out1 = [s1]
-        starting_points.pop(n1)
-        if s1[1] == 'o':
-            starting_points.append(starting_points)
-
-
-
-
-
+    for comb in combinations:
+        out = []
+        for el in comb:
+            if
