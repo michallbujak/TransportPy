@@ -82,7 +82,7 @@ class TaxiRide(Ride):
         :return: utility
         """
         request = traveller.request_details
-        trip_length = dist([request.origin, request.destination], skim)
+        trip_length = traveller.request_details.trip_length
         pickup_delay = dist([request.origin, vehicle.path.current_position], skim) \
                        / vehicle.vehicle_speed
         pref = traveller.behavioural_details

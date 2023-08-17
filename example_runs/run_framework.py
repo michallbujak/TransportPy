@@ -99,7 +99,7 @@ while events_sorted:
                 current_time
             )
         else:
-            raise NotImplementedError("Only 'pool' viable here")
+            raise NotImplementedError("Only 'pool' viable here as for now")
 
         if not succeeded:
             traveller.service_details.waiting_time += data_bank["simulation_config"]['refresh_density']

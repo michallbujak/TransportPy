@@ -36,7 +36,7 @@ class TaxiDispatcher(Dispatcher):
 
     def find_closest_vehicle(self,
                              request: tuple,
-                             veh_type: str,
+                             veh_types: list,
                              skim: dict,
                              **kwargs
                              ) -> Vehicle or None:
@@ -48,66 +48,146 @@ class TaxiDispatcher(Dispatcher):
         pool_flag = kwargs.get('empty_pool', False)
 
         # Find fitting fleet
-        for veh in self.fleet[veh_type]:
-            if veh_type == 'pool' and pool_flag:
-                if len(veh.scheduled_travellers) + len(veh.travellers) != 0:
-                    continue
-            if veh.available:
-                dist_new = utc.compute_distance([node, veh.path.current_position], skim)
-                if dist[0] > dist_new:
-                    dist = (dist_new, veh)
+        for veh_type in veh_types:
+            for veh in self.fleet[veh_type]:
+                if veh_type == 'pool' and pool_flag:
+                    if len(veh.scheduled_travellers) + len(veh.travellers) != 0:
+                        continue
+                if veh.available:
+                    dist_new = utc.compute_distance([node, veh.path.current_position], skim)
+                    if dist[0] > dist_new:
+                        dist = (dist_new, veh)
         return dist[1]
 
-    def assign_taxi(self,
-                    request: tuple,
-                    traveller: Traveller,
-                    skim: dict,
-                    logger: logging.Logger,
-                    current_time: dt
-                    ) -> None:
+    def taxi_utility(self,
+                     request: tuple,
+                     traveller: Traveller,
+                     skim: dict,
+                     logger: logging.Logger,
+                     **kwargs
+                     ) -> (TaxiRide, Vehicle, float):
         """
-        Assign a taxi ride to a traveller
+        Calculate utility of the taxi ride
         @param request: (traveller_id, origin, destination, request_time)
         @param traveller: Traveller object
         @param skim: skim dictionary
         @param logger: logging purposes
-        @param current_time: for logging purposes
-        @return: None
+        @return: Ride, vehicle, utility, profitability
         """
-        vehicle = self.find_closest_vehicle(request, "taxi", skim)
+        only_taxi = kwargs.get("only_taxi", False)
+        if only_taxi:
+            vehicle = self.find_closest_vehicle(request, ["taxi"], skim)
+        else:
+            vehicle = self.find_closest_vehicle(request, ["taxi", "pool"], skim, empty_pool=True)
+
         locations = [(request[1], 'o', request[0]), (request[2], 'd', request[0])]
         new_ride = TaxiRide([traveller], locations, 'taxi')
-        new_ride.serving_vehicle = vehicle
-        new_ride.events.append((vehicle.path.current_time,
-                                vehicle.path.nearest_crossroad if
-                                vehicle.path.nearest_crossroad is not None
-                                else vehicle.path.current_position,
-                                'a',
-                                traveller.traveller_id))
+        utility = new_ride.calculate_utility(
+            vehicle=vehicle,
+            traveller=traveller,
+            fare=self.fares['taxi'],
+            skim=skim
+        )
+        profitability = new_ride.calculate_remaining_profitability(
+            vehicle=vehicle,
+            traveller=traveller,
+            fare=self.fares['taxi'],
+            operating_cost=self.fares['operating_costs'],
+            skim=skim
+        )
+        logger.info(f"For traveller {traveller} calculated utility"
+                    f"of the taxi ride for {utility}")
+        return TaxiRide, vehicle, utility, profitability
 
+    def assign_taxi(self,
+                    taxi_ride: TaxiRide,
+                    vehicle: Vehicle,
+                    utility: float,
+                    traveller: Traveller,
+                    skim: dict,
+                    logger: logging.Logger,
+                    current_time: dt,
+                    taxi_or_pool: str = "pool"
+                    ) -> None:
+        """
+        Assign a taxi ride to a traveller
+        @param taxi_ride: TaxiRide object for which the traveller should be assigned
+        @param vehicle: Vehicle to which the traveller should be assigned
+        @param utility: calculated utility of the taxi ride
+        @param traveller: Traveller object
+        @param skim: skim dictionary
+        @param logger: logging purposes
+        @param current_time: for logging purposes
+        @param taxi_or_pool: choose whether a ride can be further pooled or not
+        @return: None
+        """
+        taxi_ride.serving_vehicle = vehicle
+        taxi_ride.events.append((vehicle.path.current_time,
+                                 vehicle.path.nearest_crossroad if
+                                 vehicle.path.nearest_crossroad is not None
+                                 else vehicle.path.current_position,
+                                 'a',
+                                 traveller.traveller_id))
         vehicle.available = False
         vehicle.scheduled_travellers = [traveller]
         vehicle.path.current_path = utc.compute_path(
-            [vehicle.path.current_position] + [t[0] for t in locations],
+            [vehicle.path.current_position] + [t[0] for t in taxi_ride.destination_points],
             skim
         )
         vehicle.path.nearest_crossroad = vehicle.path.current_path[1]
         vehicle.path.stationary_position = False
 
-        if 'taxi' not in self.rides.keys():
-            self.rides['taxi'] = [new_ride]
+        if taxi_or_pool not in self.rides.keys():
+            self.rides[taxi_or_pool] = [taxi_ride]
         else:
-            self.rides['taxi'].append(new_ride)
+            self.rides[taxi_or_pool].append(taxi_ride)
 
-        traveller.utilities['taxi'] = new_ride.calculate_utility(
-            vehicle=new_ride.serving_vehicle,
-            traveller=traveller,
-            fare=self.fares['taxi'],
-            skim=skim
-        )
+        traveller.utilities['taxi'] = utility
 
         logger.warning(f"{current_time}:"
                        f" Traveller {traveller} assigned to vehicle {vehicle}")
+
+    def pool_utility(self,
+                    request: tuple,
+                    traveller: Traveller,
+                    skim: dict,
+                    logger: logging.Logger,
+                    current_time: dt,
+                    **kwargs
+                    ) -> bool:
+        """
+        Calculate utility of a pool ride
+        @param request: (traveller_id, origin, destination, request_time)
+        @param traveller: Traveller object
+        @param skim: skim dictionary
+        @param logger: logging purposes
+        @param current_time: for logging purposes
+        @param kwargs: additional settings to choose pooling options
+        @return:
+        """
+        new_locations = [(request[1], 'o', request[0]), (request[2], 'd', request[0])]
+
+        # Search through ongoing pool rides
+        profitability_relative_increase_max = 0
+        ods_seq = []
+        best_pooled = None
+
+        for ride in self.rides["pool"]:
+            # look only for actual pool rides
+            if len(ride.travellers) == 0:
+                continue
+
+            # Filter 1: combinations must save kilometres
+            destination_points = list(ride.destination_points)
+            max_trip_length = utc.compute_distance(destination_points)
+            max_trip_length += utc.compute_distance(new_locations)
+            destination_points += new_locations
+
+            od_combinations = utils.pool_tools.admissible_future_combinations(
+
+            )
+
+
 
     def assign_pool(self,
                     request: tuple,
@@ -169,10 +249,13 @@ class TaxiDispatcher(Dispatcher):
             if len(ride.travellers) == 0:
                 continue
             destination_points = list(ride.destination_points)
+            max_trip_length = utc.compute_distance(destination_points)
+
             destination_points += [(request[1], 'o', traveller.traveller_id)]
             destination_points += [(request[2], 'd', traveller.traveller_id)]
+            max_trip_length += utc.compute_distance([request[1], request[2]])
 
-            combinations_ods = utils.pool_tools.admissible_future_combinations(destination_points)
+            combinations_ods = utils.pool_tools.admissible_future_combinations(destination_points, skim)
 
             for combination in combinations_ods:
                 potential_profitability = ride.calculate_remaining_profitability(
