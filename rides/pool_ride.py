@@ -21,18 +21,21 @@ class PoolRide(Ride):
     def __init__(self, traveller, destination_points, ride_type):
         super().__init__([traveller], destination_points, ride_type)
         self.events = []
+        self.vehicle_start_position = None
+        self.admissible_od_combinations = []
+        self.all_destination_points = destination_points
 
     def __repr__(self):
         return f"Pool: {self.travellers}"
 
-    def calculate_remaining_profitability(self,
-                                          vehicle: Vehicle,
-                                          fare: float,
-                                          pool_discount: float,
-                                          operating_cost: float,
-                                          skim: dict,
-                                          **kwargs
-                                          ) -> float:
+    def calculate_profitability(self,
+                                vehicle: Vehicle,
+                                fare: float,
+                                pool_discount: float,
+                                operating_cost: float,
+                                skim: dict,
+                                **kwargs
+                                ) -> float:
         """
         Calculate a profitability of a ride
         :param vehicle: Vehicle or child class object
@@ -52,6 +55,8 @@ class PoolRide(Ride):
 
         costs = dist([vehicle.path.current_position, *[t[0] for t in destination_points]], skim) \
                 * operating_cost
+
+        costs = dist([[ev for ev in vehicle.events if ev[2]=='a'][-1]])
 
         profits = 0
         if len(paxes) == 1:

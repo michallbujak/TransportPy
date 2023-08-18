@@ -1,6 +1,8 @@
 from itertools import permutations
 import time
 from collections import Counter
+from rides.pool_ride import PoolRide
+from utils.common import compute_distance as dist
 
 
 # def admissible_future_combinations(
@@ -36,30 +38,43 @@ from collections import Counter
 #     return [[ods_dict[e] for e in c] for c in out]
 
 def admissible_future_combinations(
-        ods: list,
+        new_locations: list,
+        ride: PoolRide,
         max_trip_length: float,
-        execution_time: bool = True)\
--> list:
+        skim: dict,
+        execution_time: bool = True
+) -> list:
     """
-    Function to create possible combination of sequence of origins and destinations,
-     where no destination proceeds corresponding origin
-    :param ods: list of labeled origins and destinations tuples (node, 'o', traveller)
-    :param max_trip_length: maximal admissible trip length
-    :param execution_time: monitor execution time
-    :return: admissible combinations
+    Look at the admissible combinations for the ride.
+    Check where new origin and destination can be inserted,
+    such that the trip length is no greater than sum
+    of length the ongoing trip + length of the new trip
+    @param new_locations: [(node, 'o', traveller), (node, 'd', traveller)]
+    @param ride:
+    @param max_trip_length:
+    @param skim:
+    @param execution_time:
+    @return:
     """
     if execution_time:
         start_time = time.time()
 
-    ods_dict = {(od, pax): (node, od, pax) for node, od, pax in ods}
-    ods_mini = [(od, pax) for node, od, pax in ods]
+    for combination in ride.admissible_od_combinations:
+        for node in combination:
+            if node not in ride.destination_points:
+                combination.remove(node)
 
-    seq_paxes = [t for n, o, t in ods]
-    unique = [k for k, v in Counter(seq_paxes).items() if v == 1]
+    combinations = []
+    for combination in ride.admissible_od_combinations:
+        for i in range(len(combination) - 1):
+            for j in range(i+1, len(combination)+1):
+                c = combination.copy()
+                c.insert(i, new_locations[0])
+                c.insert(j, new_locations[1])
+                if dist([t[0] for t in combination], skim) < max_trip_length:
+                    combinations.append(c)
 
-    combinations = set(permutations(seq_paxes))
+    if execution_time:
+        print(f"--- Combinations found in {time.time() - start_time} seconds ---")
 
-    for comb in combinations:
-        out = []
-        for el in comb:
-            if
+    return combinations

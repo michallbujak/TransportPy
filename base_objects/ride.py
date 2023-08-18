@@ -43,7 +43,7 @@ class Ride:
         self.active = True
 
     @abstractmethod
-    def calculate_remaining_profitability(self, **kwargs):
+    def calculate_profitability(self, **kwargs):
         """
         Calculate ride's profitability
         return profit, cost
@@ -71,7 +71,7 @@ class Ride:
             raise TypeError(
                 'Subclasses of `Ride` must override the `calculate_utility` method'
             )
-        if cls.calculate_remaining_profitability == Ride.calculate_remaining_profitability:
+        if cls.calculate_profitability == Ride.calculate_profitability:
             raise TypeError(
                 'Subclasses of `Ride` must override the `calculate_remaining_profitability` method'
             )

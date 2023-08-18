@@ -23,14 +23,14 @@ class TaxiRide(Ride):
     def __repr__(self):
         return "taxi"
 
-    def calculate_remaining_profitability(self,
-                                          vehicle: Any,
-                                          traveller: Traveller,
-                                          fare: float,
-                                          operating_cost: float,
-                                          skim: dict,
-                                          **kwargs
-                                          ) -> float:
+    def calculate_profitability(self,
+                                vehicle: Any,
+                                traveller: Traveller,
+                                fare: float,
+                                operating_cost: float,
+                                skim: dict,
+                                **kwargs
+                                ) -> float:
         """
         Calculate a profitability of a ride
         :param vehicle: Vehicle or child class object

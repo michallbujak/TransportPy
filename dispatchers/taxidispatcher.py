@@ -88,7 +88,7 @@ class TaxiDispatcher(Dispatcher):
             fare=self.fares['taxi'],
             skim=skim
         )
-        profitability = new_ride.calculate_remaining_profitability(
+        profitability = new_ride.calculate_profitability(
             vehicle=vehicle,
             traveller=traveller,
             fare=self.fares['taxi'],
@@ -148,13 +148,13 @@ class TaxiDispatcher(Dispatcher):
                        f" Traveller {traveller} assigned to vehicle {vehicle}")
 
     def pool_utility(self,
-                    request: tuple,
-                    traveller: Traveller,
-                    skim: dict,
-                    logger: logging.Logger,
-                    current_time: dt,
-                    **kwargs
-                    ) -> bool:
+                     request: tuple,
+                     traveller: Traveller,
+                     skim: dict,
+                     logger: logging.Logger,
+                     current_time: dt,
+                     **kwargs
+                     ) -> bool:
         """
         Calculate utility of a pool ride
         @param request: (traveller_id, origin, destination, request_time)
@@ -168,9 +168,7 @@ class TaxiDispatcher(Dispatcher):
         new_locations = [(request[1], 'o', request[0]), (request[2], 'd', request[0])]
 
         # Search through ongoing pool rides
-        profitability_relative_increase_max = 0
-        ods_seq = []
-        best_pooled = None
+        possible_assignments = []
 
         for ride in self.rides["pool"]:
             # look only for actual pool rides
@@ -184,8 +182,43 @@ class TaxiDispatcher(Dispatcher):
             destination_points += new_locations
 
             od_combinations = utils.pool_tools.admissible_future_combinations(
-
+                new_locations=new_locations,
+                ride=ride,
+                max_trip_length=max_trip_length,
+                skim=skim,
+                execution_time=True
             )
+
+            # If it's not feasible to associate the new requests
+            if not od_combinations:
+                continue
+
+            # Filter 2: calculate whether it's profitable for operator
+            base_profitability = ride.calculate_profitability(
+                vehicle=ride.serving_vehicle,
+                fare=self.fares["pool"],
+                pool_discount=self.fares["fake_uber"],
+                operating_cost=self.operating_costs["pool"],
+                skim=skim,
+            )
+            ride.profitability.profitability = base_profitability
+
+            for comb in od_combinations.copy():
+                profitability_comb = ride.calculate_profitability(
+                    vehicle=ride.serving_vehicle,
+                    fare=self.fares["pool"],
+                    pool_discount=self.fares["fake_uber"],
+                    operating_cost=self.operating_costs["pool"],
+                    skim=skim,
+                    destination_points=comb,
+                    additional_traveller=traveller
+                )
+                if profitability_comb < base_profitability:
+                    od_combinations.remove(comb)
+
+            # Filter 3: utility for travellers
+
+
 
 
 
@@ -231,7 +264,7 @@ class TaxiDispatcher(Dispatcher):
             fare=self.fares['taxi'],
             skim=skim
         )
-        baseline_profitability = baseline_taxi.calculate_remaining_profitability(
+        baseline_profitability = baseline_taxi.calculate_profitability(
             vehicle=closest_vehicle,
             traveller=traveller,
             fare=self.fares['taxi'],
@@ -258,7 +291,7 @@ class TaxiDispatcher(Dispatcher):
             combinations_ods = utils.pool_tools.admissible_future_combinations(destination_points, skim)
 
             for combination in combinations_ods:
-                potential_profitability = ride.calculate_remaining_profitability(
+                potential_profitability = ride.calculate_profitability(
                     vehicle=ride.serving_vehicle,
                     fare=self.fares['taxi'],
                     pool_discount=self.fares['pool_discount'],
