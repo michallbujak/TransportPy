@@ -53,10 +53,13 @@ class PoolRide(Ride):
         else:
             paxes = vehicle.travellers + vehicle.scheduled_travellers
 
-        costs = dist([vehicle.path.current_position, *[t[0] for t in destination_points]], skim) \
-                * operating_cost
+        curr_dest_pt = self.destination_points[0]
+        curr_dest_pt_idx = self.all_destination_points.index(curr_dest_pt)
 
-        costs = dist([[ev for ev in vehicle.events if ev[2]=='a'][-1]])
+        costs = dist([self.vehicle_start_position] +
+                     self.all_destination_points[:curr_dest_pt_idx] +
+                     self.destination_points,
+                     skim)
 
         profits = 0
         if len(paxes) == 1:
@@ -81,6 +84,7 @@ class PoolRide(Ride):
         :param no_travellers: number of travellers
         return (profits, costs)
         """
+        raise NotImplementedError("Nie tak! Popraw pajacu, niezależne od trasy")
         flag = len(self.travellers) >= 1
         return distance * fare * int(flag) * no_travellers, distance * operating_cost
 
