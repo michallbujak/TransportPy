@@ -41,6 +41,7 @@ def admissible_future_combinations(
         new_locations: list,
         ride: PoolRide,
         max_trip_length: float,
+        max_distance_pickup: float,
         skim: dict,
         execution_time: bool = True
 ) -> list:
@@ -52,6 +53,7 @@ def admissible_future_combinations(
     @param new_locations: [(node, 'o', traveller), (node, 'd', traveller)]
     @param ride:
     @param max_trip_length:
+    @param max_distance_pickup:
     @param skim:
     @param execution_time:
     @return:
@@ -67,12 +69,15 @@ def admissible_future_combinations(
     combinations = []
     for combination in ride.admissible_od_combinations:
         for i in range(len(combination) - 1):
+            c1 = combination.copy()
+            c1.insert(i, new_locations[0])
+            if dist([c1[:i]], skim) > max_distance_pickup:
+                continue
             for j in range(i+1, len(combination)+1):
-                c = combination.copy()
-                c.insert(i, new_locations[0])
-                c.insert(j, new_locations[1])
+                c2 = c1.copy()
+                c2.insert(j, new_locations[1])
                 if dist([t[0] for t in combination], skim) < max_trip_length:
-                    combinations.append(c)
+                    combinations.append(c2)
 
     if execution_time:
         print(f"--- Combinations found in {time.time() - start_time} seconds ---")

@@ -393,14 +393,6 @@ def move_vehicle_ride(vehicle: Vehicle,
             else:
                 trav.distance_travelled[ride.ride_type] = distance_to_crossroad
 
-        # Update profits and costs
-        fare = kwargs.get("fare", False)
-        op_costs = kwargs.get("operating_costs", False)
-        if fare and op_costs:
-            no_paxes = len(vehicle.travellers)
-            ride.profitability.profit += distance_to_crossroad * no_paxes * fare
-            ride.profitability.cost += distance_to_crossroad * op_costs
-
         ride, vehicle = check_if_event(ride, vehicle)
 
         if len(vehicle.path.current_path) == 1:

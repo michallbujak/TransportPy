@@ -70,24 +70,6 @@ class PoolRide(Ride):
 
         return profits - costs
 
-    def calculate_unit_profitability(self,
-                                     distance: float,
-                                     fare: float,
-                                     operating_cost: float,
-                                     no_travellers: int,
-                                     **kwargs):
-        """
-        Calculate profitability for a distance
-        :param distance: travelled distance
-        :param fare: fare in monetary units/meter
-        :param operating_cost: operating cost in units/meter
-        :param no_travellers: number of travellers
-        return (profits, costs)
-        """
-        raise NotImplementedError("Nie tak! Popraw pajacu, niezależne od trasy")
-        flag = len(self.travellers) >= 1
-        return distance * fare * int(flag) * no_travellers, distance * operating_cost
-
     def calculate_utility(self,
                           vehicle: Any,
                           traveller: Traveller,

@@ -10,5 +10,6 @@
 		},
 		"PfS_const": 0
 	},
-	"maximal_waiting": 600
+	"maximal_waiting": 600,
+	"maximal_pickup": 600
 }

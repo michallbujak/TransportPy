@@ -51,14 +51,6 @@ class Ride:
         raise NotImplementedError("method calculate_total_profitability must be implemented")
 
     @abstractmethod
-    def calculate_unit_profitability(self, **kwargs):
-        """
-        Calculate ride's profitability on a given distance
-        Update self. profitability
-        """
-        raise NotImplementedError("method calculate_unit_profitability must be implemented")
-
-    @abstractmethod
     def calculate_utility(self, **kwargs):
         """
         Calculate ride's profitability
@@ -74,9 +66,5 @@ class Ride:
         if cls.calculate_profitability == Ride.calculate_profitability:
             raise TypeError(
                 'Subclasses of `Ride` must override the `calculate_remaining_profitability` method'
-            )
-        if cls.calculate_unit_profitability == Ride.calculate_unit_profitability:
-            raise TypeError(
-                'Subclasses of `Ride` must override the `calculate_unit_profitability` method'
             )
         super().__init_subclass__(**kwargs)
