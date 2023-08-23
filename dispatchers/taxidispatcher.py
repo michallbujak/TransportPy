@@ -204,19 +204,17 @@ class TaxiDispatcher(Dispatcher):
                     skim=skim
                 )
             else:
-                baseline_utility=False
-
+                baseline_utility = False
 
         # Search through ongoing pool rides
         possible_assignments = []
-
 
         for ride in self.rides["pool"]:
             # look only for actual pool rides
             if len(ride.travellers) == 0:
                 continue
 
-            max_distance_pickup = maximal_pick_up/ride.serving_vehicle.vehicle_speed
+            max_distance_pickup = maximal_pick_up / ride.serving_vehicle.vehicle_speed
 
             # Filter 1: combinations must save kilometres
             destination_points = list(ride.destination_points)
@@ -233,7 +231,7 @@ class TaxiDispatcher(Dispatcher):
                 execution_time=True
             )
 
-            # If it's not feasible to associate the new requests
+            # If it's not feasible to associate the new request
             if not od_combinations:
                 continue
 
@@ -257,14 +255,15 @@ class TaxiDispatcher(Dispatcher):
                 else:
                     output_pool[comb] = {'profitability': profitability_comb}
 
+            # If it's not feasible to associate the new request
+            if not od_combinations:
+                continue
+
             # Filter 3: utility for travellers
             if baseline_utility:
                 ride.calculate_utility(
 
                 )
-
-
-
 
     def assign_pool(self,
                     request: tuple,
