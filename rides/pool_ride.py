@@ -53,8 +53,8 @@ class PoolRide(Ride):
         else:
             paxes = vehicle.travellers + vehicle.scheduled_travellers
 
-        curr_dest_pt = self.destination_points[0]
-        curr_dest_pt_idx = self.all_destination_points.index(curr_dest_pt)
+        curr_dest_pt = destination_points[0]
+        curr_dest_pt_idx = destination_points.index(curr_dest_pt)
 
         costs = dist([self.vehicle_start_position] +
                      self.all_destination_points[:curr_dest_pt_idx] +

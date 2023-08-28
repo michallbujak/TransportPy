@@ -261,8 +261,14 @@ class TaxiDispatcher(Dispatcher):
 
             # Filter 3: utility for travellers
             if baseline_utility:
+                for pax in ride.travellers + ride.
                 ride.calculate_utility(
-
+                    vehicle=ride.serving_vehicle,
+                    traveller=Traveller,
+                    nodes_seq: list,
+                    no_travellers: int,
+                    fare: float,
+                    skim: dict
                 )
 
     def assign_pool(self,
