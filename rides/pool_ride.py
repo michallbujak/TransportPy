@@ -22,7 +22,6 @@ class PoolRide(Ride):
         super().__init__([traveller], destination_points, ride_type)
         self.events = []
         self.vehicle_start_position = None
-        self.admissible_od_combinations = []
         self.all_destination_points = destination_points
 
     def __repr__(self):

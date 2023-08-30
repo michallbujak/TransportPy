@@ -18,17 +18,17 @@ data_bank = utc.initialise_data_simulation(
 dispatchers = {}
 for dispatcher_name in data_bank["simulation_config"]["taxi_operators"]:
     dispatchers[dispatcher_name] = TaxiDispatcher(
-        dispatcher_id='fake_uber',
-        fares=data_bank["fare_config"]["fares"]['fake_uber'],
-        operating_costs=data_bank["fare_config"]['operating_costs']['fake_uber'],
-        fleet=data_bank["vehicles"].loc[data_bank["vehicles"]['operator'] == 'fake_uber']
+        dispatcher_id=dispatcher_name,
+        fares=data_bank["fare_config"]["fares"][dispatcher_name],
+        operating_costs=data_bank["fare_config"]['operating_costs'][dispatcher_name],
+        fleet=data_bank["vehicles"].loc[data_bank["vehicles"]['operator'] == dispatcher_name]
     )
 # Add here if there are different kinds of operators
 # ...
 
 # Prepare individual behavioural preferences
 # should be consistent with id from requests
-behavioural_details = utc.homogeneous_behaviours(
+data_bank['behavioural_details'] = utc.homogeneous_behaviours(
     initial_configuration=data_bank["behavioural_config"],
     requests=data_bank["requests"]
 )
@@ -62,9 +62,7 @@ while events_sorted:
                             ride=ride,
                             move_time=time_between_events,
                             skim=data_bank["skim"],
-                            logger=data_bank["logger"],
-                            fare=_fares[_Dispatcher.dispatcher_id][ride.ride_type],
-                            operating_costs=_op_costs[_Dispatcher.dispatcher_id][ride.ride_type]
+                            logger=data_bank["logger"]
                         )
 
     # If the event is a new vehicle
@@ -104,7 +102,7 @@ while events_sorted:
         if not succeeded:
             traveller.service_details.waiting_time += data_bank["simulation_config"]['refresh_density']
 
-            if behavioural_details[traveller.traveller_id]["maximal_waiting"] \
+            if data_bank['behavioural_details'][traveller.traveller_id]["maximal_waiting"] \
                     < traveller.service_details.waiting_time:
                 traveller.service_details.resigned = True
 

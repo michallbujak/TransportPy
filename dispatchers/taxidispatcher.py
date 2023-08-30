@@ -218,8 +218,8 @@ class TaxiDispatcher(Dispatcher):
 
             # Filter 1: combinations must save kilometres
             destination_points = list(ride.destination_points)
-            max_trip_length = utc.compute_distance(destination_points)
-            max_trip_length += utc.compute_distance(new_locations)
+            max_trip_length = utc.compute_distance(destination_points, skim)
+            max_trip_length += utc.compute_distance(new_locations, skim)
             destination_points += new_locations
 
             od_combinations = utils.pool_tools.admissible_future_combinations(
@@ -261,15 +261,17 @@ class TaxiDispatcher(Dispatcher):
 
             # Filter 3: utility for travellers
             if baseline_utility:
-                for pax in ride.travellers + ride.
-                ride.calculate_utility(
-                    vehicle=ride.serving_vehicle,
-                    traveller=Traveller,
-                    nodes_seq: list,
-                    no_travellers: int,
-                    fare: float,
-                    skim: dict
-                )
+                for comb in od_combinations:
+                    paxes = ride.travellers + ride.scheduled_travellers
+                    for pax in paxes:
+                        ride.calculate_utility(
+                            vehicle=ride.serving_vehicle,
+                            traveller=pax,
+                            nodes_seq=comb,
+                            no_travellers=len(paxes),
+                            fare=self.fares['pool'],
+                            skim=skim
+                        )
 
     def assign_pool(self,
                     request: tuple,

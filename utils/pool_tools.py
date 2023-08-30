@@ -61,25 +61,29 @@ def admissible_future_combinations(
     if execution_time:
         start_time = time.time()
 
-    for combination in ride.admissible_od_combinations:
-        for node in combination:
-            if node not in ride.destination_points:
-                combination.remove(node)
+    all_combinations = permutations(ride.destination_points)
+    out = []
 
-    combinations = []
-    for combination in ride.admissible_od_combinations:
+    for combination in all_combinations:
+
+        if dist([t[0] for t in all_combinations], skim) > max_distance_pickup:
+            continue
+
         for i in range(len(combination) - 1):
             c1 = combination.copy()
             c1.insert(i, new_locations[0])
-            if dist([c1[:i]], skim) > max_distance_pickup:
+
+            if dist([t[0] for t in c1[:i]], skim) > max_distance_pickup:
                 continue
+
             for j in range(i+1, len(combination)+1):
                 c2 = c1.copy()
                 c2.insert(j, new_locations[1])
-                if dist([t[0] for t in combination], skim) < max_trip_length:
-                    combinations.append(c2)
+
+                if dist([t[0] for t in c2], skim) < max_trip_length:
+                    out.append(c2)
 
     if execution_time:
         print(f"--- Combinations found in {time.time() - start_time} seconds ---")
 
-    return combinations
+    return out
