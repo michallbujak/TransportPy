@@ -118,11 +118,11 @@ class PoolRide(Ride):
 
             if len(self.path.current_path) == 1:
                 self.path.current_path = None
-                self.path.nearest_crossroad = None
+                self.path.closest_crossroad = None
                 self.path.stationary_position = True
 
             else:
-                self.path.nearest_crossroad = self.path.current_path[1]
+                self.path.closest_crossroad = self.path.current_path[1]
 
     def new_future_profit(self,
                           event_sequence: list,

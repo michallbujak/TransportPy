@@ -27,6 +27,7 @@ class ServiceDetails:
     """
     resigned: bool
     waiting_time: float or None
+    pickup_delay: float or bool
 
 
 class Traveller:
@@ -56,7 +57,8 @@ class Traveller:
         self.distance_travelled = {}
         self.service_details = ServiceDetails(
             resigned=False,
-            waiting_time=0
+            waiting_time=0,
+            pickup_delay=False
         )
 
     def __repr__(self):

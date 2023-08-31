@@ -350,7 +350,7 @@ def move_vehicle_ride(vehicle: Vehicle,
 
     while vehicle.path.current_path is not None:
         assert (
-                vehicle.path.nearest_crossroad is not None
+                vehicle.path.closest_crossroad is not None
         ), "The path has not been updated, vehicle does not have a path to follow"
 
         vehicle.path.stationary_position = False
@@ -367,6 +367,7 @@ def move_vehicle_ride(vehicle: Vehicle,
             logger.debug(f"Vehicle {vehicle}: Insufficient time to reach"
                          f" crossroad {vehicle.path.current_path[1]}")
             vehicle.path.time_between_crossroads = vehicle.path.time_between_crossroads + time_left
+            vehicle.path.to_closest_crossroads = time_required_to_crossroad - vehicle.path.time_between_crossroads
             vehicle.path.current_time = vehicle.path.current_time + timedelta(seconds=time_left)
             ride, vehicle = check_if_event(ride, vehicle)
             break
@@ -385,6 +386,7 @@ def move_vehicle_ride(vehicle: Vehicle,
         vehicle.path.current_position = vehicle.path.current_path[1]
         vehicle.path.current_path = vehicle.path.current_path[1:]
         vehicle.path.time_between_crossroads = 0
+        vehicle.path.to_closest_crossroads = None
 
         # Update traveller detailed movement
         for trav in vehicle.travellers:
@@ -397,7 +399,7 @@ def move_vehicle_ride(vehicle: Vehicle,
 
         if len(vehicle.path.current_path) == 1:
             vehicle.path.current_path = None
-            vehicle.path.nearest_crossroad = None
+            vehicle.path.closest_crossroad = None
             vehicle.path.stationary_position = True
             vehicle.available = True
             ride.active = False
@@ -405,7 +407,7 @@ def move_vehicle_ride(vehicle: Vehicle,
                            f"Ride {ride} finished with vehicle {vehicle}")
 
         else:
-            vehicle.path.nearest_crossroad = vehicle.path.current_path[1]
+            vehicle.path.closest_crossroad = vehicle.path.current_path[1]
 
         # Check from the request perspective whether something happens at those nodes
         ride, vehicle = check_if_event(ride, vehicle)

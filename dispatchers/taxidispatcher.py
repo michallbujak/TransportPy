@@ -123,8 +123,8 @@ class TaxiDispatcher(Dispatcher):
         """
         taxi_ride.serving_vehicle = vehicle
         taxi_ride.events.append((vehicle.path.current_time,
-                                 vehicle.path.nearest_crossroad if
-                                 vehicle.path.nearest_crossroad is not None
+                                 vehicle.path.closest_crossroad if
+                                 vehicle.path.closest_crossroad is not None
                                  else vehicle.path.current_position,
                                  'a',
                                  traveller.traveller_id))
@@ -134,7 +134,7 @@ class TaxiDispatcher(Dispatcher):
             [vehicle.path.current_position] + [t[0] for t in taxi_ride.destination_points],
             skim
         )
-        vehicle.path.nearest_crossroad = vehicle.path.current_path[1]
+        vehicle.path.closest_crossroad = vehicle.path.current_path[1]
         vehicle.path.stationary_position = False
 
         if taxi_or_pool not in self.rides.keys():
@@ -150,7 +150,6 @@ class TaxiDispatcher(Dispatcher):
     def pool_utility(self,
                      request: tuple,
                      traveller: Traveller,
-                     fares: dict,
                      skim: dict,
                      logger: logging.Logger,
                      current_time: dt,
@@ -197,14 +196,17 @@ class TaxiDispatcher(Dispatcher):
                 taxi_feasible = False
 
             if taxi_feasible:
-                baseline_utility = baseline_taxi.calculate_utility(
+                paxes = closest_vehicle.travellers + closest_vehicle.scheduled_travellers + traveller
+                baseline_utility = {pax.traveller: baseline_taxi.calculate_utility(
                     vehicle=closest_vehicle,
                     traveller=traveller,
                     fare=self.fares["taxi"],
                     skim=skim
-                )
+                ) for pax in paxes}
             else:
                 baseline_utility = False
+        else:
+            baseline_utility = False
 
         # Search through ongoing pool rides
         possible_assignments = []
@@ -255,52 +257,55 @@ class TaxiDispatcher(Dispatcher):
                 else:
                     output_pool[comb] = {'profitability': profitability_comb}
 
-            # If it's not feasible to associate the new request
+            # If it's not feasible to assign the new request
             if not od_combinations:
                 continue
 
             # Filter 3: utility for travellers
             if baseline_utility:
-                for comb in od_combinations:
-                    paxes = ride.travellers + ride.scheduled_travellers
-                    for pax in paxes:
-                        ride.calculate_utility(
-                            vehicle=ride.serving_vehicle,
-                            traveller=pax,
-                            nodes_seq=comb,
-                            no_travellers=len(paxes),
-                            fare=self.fares['pool'],
-                            skim=skim
-                        )
+                for comb in od_combinations.copy():
+                    paxes = ride.travellers + ride.scheduled_travellers + traveller
+                    shared_utility = {pax: ride.calculate_utility(
+                        vehicle=ride.serving_vehicle,
+                        traveller=pax,
+                        nodes_seq=comb,
+                        no_travellers=len(paxes),
+                        fare=self.fares['pool'],
+                        skim=skim
+                    ) for pax in paxes}
+                    if not all([shared_utility[key] > baseline_utility[key] for key in shared_utility.keys()]):
+                        od_combinations.remove(comb)
+                    else:
+                        output_pool[comb]['shared_utility'] = shared_utility
+
+            if not od_combinations:
+                continue
+
+            for comb in od_combinations:
+                possible_assignments.append((ride,
+                                             comb,
+                                             output_pool[comb]['profitability'],
+                                             output_pool[comb]['shared_utility']))
+
+        logger.debug(f"{current_time}: Traveller {traveller} found a shared ride: {possible_assignments}")
 
     def assign_pool(self,
-                    request: tuple,
+                    possible_assignments: list,
                     traveller: Traveller,
-                    skim: dict,
                     logger: logging.Logger,
                     current_time: dt,
                     **kwargs
                     ) -> bool:
-        """
-        Assigned pooled ride
-        @param request: (traveller_id, origin, destination, request_time)
-        @param traveller: Traveller object
-        @param skim: skim dictionary
-        @param logger: logging purposes
-        @param current_time: for logging purposes
-        @param kwargs: additional settings to choose pooling options
-        @return:
-        """
-        # if there is a fitting ride, add a traveller
-        if best_pooled is not None:
-            logger.warning(f"{current_time}: {best_pooled}"
-                           f" found suitable for traveller {traveller}")
-            best_pooled.add_traveller(
-                traveller=traveller,
-                new_profitability=profitability_relative_increase_max,
-                ods_sequence=ods_seq,
-                skim=skim
-            )
+
+        best_pooled = None
+        logger.warning(f"{current_time}: {best_pooled}"
+                       f" found suitable for traveller {traveller}")
+        best_pooled.add_traveller(
+            traveller=traveller,
+            new_profitability=profitability_relative_increase_max,
+            ods_sequence=ods_seq,
+            skim=skim
+        )
 
         else:
             logger.info(f"{current_time}: No ongoing pool rides are attractive for {traveller}")
@@ -324,7 +329,7 @@ class TaxiDispatcher(Dispatcher):
                                [t[0] for t in destination_points],
                 skim=skim
             )
-            veh.path.nearest_crossroad = veh.path.current_path[1]
+            veh.path.closest_crossroad = veh.path.current_path[1]
             veh.path.current_time = current_time
             veh.path.stationary_position = False
             veh.scheduled_travellers.append(traveller)

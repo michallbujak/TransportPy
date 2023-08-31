@@ -88,30 +88,26 @@ class PoolRide(Ride):
         :param skim: distances dictionary
         :return: utility
         """
-        # Separate part of the trip corresponding to the traveller in question
-        trip_before_pickup = []
-        actual_trip = []
-        flag = False
-        for node in nodes_seq:
-            if node[2] == traveller.traveller_id and flag:
-                actual_trip.append(node)
-                break
-            if node[2] == traveller.traveller_id and not flag:
-                flag = True
-            if flag:
-                actual_trip.append(node)
-            else:
-                trip_before_pickup.append(node)
+        # Check if already picked_up:
+        if traveller.service_details.pick_up_delay is not None:
+            pickup_delay = traveller.service_details.pick_up_delay
+            start = [node for node in self.all_destination_points
+                     if (node[1] == 'o' and node[2] == traveller)][0]
+            finish = [node for node in nodes_seq if (node[1] == 'd' and node[2] == traveller)][0]
+            trip = [self.all_destination_points[self.all_destination_points.index(start):]]
+            trip += [vehicle.path.current_position]
+            trip += [vehicle.path.closest_crossroad]
+            trip += nodes_seq[:(nodes_seq.index(finish)+1)]
+            trip_length = dist(trip, skim)
 
-        # Pick-up
-        if len(trip_before_pickup) >= 1:
-            pickup_delay = dist([vehicle.path.current_position] + trip_before_pickup, skim) \
-                           / vehicle.vehicle_speed
         else:
-            pickup_delay = 0
-
-        # Trip length
-        trip_length = dist(actual_trip, skim)
+            start = [node for node in nodes_seq if (node[1] == 'o' and node[2] == traveller)][0]
+            finish = [node for node in nodes_seq if (node[1] == 'd' and node[2] == traveller)][0]
+            pickup_delay = dist([vehicle.path.closest_crossroad] + nodes_seq[:(nodes_seq.index(start) + 1)], skim)
+            pickup_delay *= vehicle.vehicle_speed
+            pickup_delay += vehicle.path.to_closest_crossroads
+            trip = [nodes_seq[nodes_seq.index(start):(nodes_seq.index(finish)+1)]]
+            trip_length = dist(trip, skim)
 
         # Utility calculation
         pref = traveller.behavioural_details
@@ -144,7 +140,7 @@ class PoolRide(Ride):
 
         vehicle.path.current_path = find_path(
             list_of_points=[vehicle.path.current_position] +
-                           [vehicle.path.nearest_crossroad] +
+                           [vehicle.path.closest_crossroad] +
                            [t[0] for t in ods_sequence],
             skim=skim
         )

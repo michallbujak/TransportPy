@@ -14,8 +14,9 @@ class Positioning:
     current_time: datetime
     end_time: datetime or None
     current_path: list or None
-    nearest_crossroad: int or None
+    closest_crossroad: int or None
     time_between_crossroads: int
+    to_closest_crossroads: int or None
     stationary_position: bool
 
 
@@ -58,8 +59,9 @@ class Vehicle:
             current_time=start_time,
             end_time=end_time,
             current_path=None,
-            nearest_crossroad=None,
+            closest_crossroad=None,
             time_between_crossroads=0,
+            to_closest_crossroads=0,
             stationary_position=True
         )
 
