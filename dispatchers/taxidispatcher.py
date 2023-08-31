@@ -171,7 +171,8 @@ class TaxiDispatcher(Dispatcher):
         maximal_pick_up = kwargs.get("maximal_pickup", 1e6)
 
         # Consider baseline taxi
-        if kwargs.get("attractive_only", True):
+        pax_cond = traveller.utilities.get('taxi', None) is None or False
+        if kwargs.get("attractive_only", True) and pax_cond:
             baseline_taxi = TaxiRide(
                 traveller=traveller,
                 destination_points=new_locations,
@@ -196,17 +197,14 @@ class TaxiDispatcher(Dispatcher):
                 taxi_feasible = False
 
             if taxi_feasible:
-                paxes = closest_vehicle.travellers + closest_vehicle.scheduled_travellers + traveller
-                baseline_utility = {pax.traveller: baseline_taxi.calculate_utility(
+                traveller.utilities['taxi'] = baseline_taxi.calculate_utility(
                     vehicle=closest_vehicle,
                     traveller=traveller,
                     fare=self.fares["taxi"],
                     skim=skim
-                ) for pax in paxes}
+                )
             else:
-                baseline_utility = False
-        else:
-            baseline_utility = False
+                traveller.utilities['taxi'] = False
 
         # Search through ongoing pool rides
         possible_assignments = []

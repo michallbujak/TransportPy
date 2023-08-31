@@ -18,6 +18,7 @@ class RequestDetails:
     destination: int
     request_type: str
     trip_length: float or None
+    cost: float or None
 
 
 @dataclass
@@ -50,7 +51,8 @@ class Traveller:
             origin=request[1],
             destination=request[2],
             request_type=request[4],
-            trip_length=None
+            trip_length=None,
+            cost=None
         )
         self.behavioural_details = behavioural_details
         self.utilities = {}

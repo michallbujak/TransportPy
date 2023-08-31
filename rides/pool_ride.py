@@ -67,7 +67,7 @@ class PoolRide(Ride):
             for pax in paxes:
                 profits += pax.request_details.trip_length * fare * (1 - pool_discount)
 
-        return profits - costs
+        return profits - costs*operating_cost
 
     def calculate_utility(self,
                           vehicle: Any,
