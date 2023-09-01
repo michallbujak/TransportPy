@@ -27,48 +27,6 @@ class PoolRide(Ride):
     def __repr__(self):
         return f"Pool: {self.travellers}"
 
-    def calculate_profitability(self,
-                                vehicle: Vehicle,
-                                fare: float,
-                                pool_discount: float,
-                                operating_cost: float,
-                                skim: dict,
-                                **kwargs
-                                ) -> float:
-        """
-        Calculate a profitability of a ride
-        :param vehicle: Vehicle or child class object
-        :param fare: fare in monetary units/meter
-        :param pool_discount: discount for a shared ride
-        :param operating_cost: operating cost in units/meter
-        :param skim: distances dictionary
-        :param kwargs: consistence with the Ride class
-        :return: profit
-        """
-        destination_points = kwargs.get('destination_points', self.destination_points)
-        additional_traveller = kwargs.get('additional_traveller', None)
-        if additional_traveller is not None:
-            paxes = vehicle.travellers + vehicle.scheduled_travellers + [additional_traveller]
-        else:
-            paxes = vehicle.travellers + vehicle.scheduled_travellers
-
-        curr_dest_pt = destination_points[0]
-        curr_dest_pt_idx = destination_points.index(curr_dest_pt)
-
-        costs = dist([self.vehicle_start_position] +
-                     self.all_destination_points[:curr_dest_pt_idx] +
-                     self.destination_points,
-                     skim)
-
-        profits = 0
-        if len(paxes) == 1:
-            profits = paxes[0].request_details.trip_length * fare
-        else:
-            for pax in paxes:
-                profits += pax.request_details.trip_length * fare * (1 - pool_discount)
-
-        return profits - costs*operating_cost
-
     def calculate_utility(self,
                           vehicle: Any,
                           traveller: Traveller,
@@ -119,7 +77,7 @@ class PoolRide(Ride):
 
     def add_traveller(self,
                       traveller: Traveller,
-                      new_profitability: float,
+                      new_profitability: tuple or list,
                       ods_sequence: list,
                       skim: dict
                       ) -> None:
@@ -127,7 +85,7 @@ class PoolRide(Ride):
         If a ride is considered attractive for the new traveller
         assign him/her to the ride
         @param traveller: Traveller who is to be assigned
-        @param new_profitability: value calculated prior to assignment
+        @param new_profitability: values calculated prior to assignment (profit, cost, profitability)
         @param ods_sequence: sequence of origins and destinations along the route
         @param skim: skim dictionary
         """
@@ -146,6 +104,52 @@ class PoolRide(Ride):
         )
 
         # Update self
-        self.profitability.profitability = new_profitability
+        self.profitability.profit = new_profitability[0]
+        self.profitability.cost = new_profitability[1]
+        self.profitability.profitability = new_profitability[2]
         self.travellers.append(traveller)
         self.destination_points = ods_sequence
+
+
+
+    # def calculate_profitability(self,
+    #                             vehicle: Vehicle,
+    #                             fare: float,
+    #                             pool_discount: float,
+    #                             operating_cost: float,
+    #                             skim: dict,
+    #                             **kwargs
+    #                             ) -> float:
+    #     """
+    #     Calculate a profitability of a ride
+    #     :param vehicle: Vehicle or child class object
+    #     :param fare: fare in monetary units/meter
+    #     :param pool_discount: discount for a shared ride
+    #     :param operating_cost: operating cost in units/meter
+    #     :param skim: distances dictionary
+    #     :param kwargs: consistence with the Ride class
+    #     :return: profit
+    #     """
+    #     destination_points = kwargs.get('destination_points', self.destination_points)
+    #     additional_traveller = kwargs.get('additional_traveller', None)
+    #     if additional_traveller is not None:
+    #         paxes = vehicle.travellers + vehicle.scheduled_travellers + [additional_traveller]
+    #     else:
+    #         paxes = vehicle.travellers + vehicle.scheduled_travellers
+    #
+    #     curr_dest_pt = destination_points[0]
+    #     curr_dest_pt_idx = destination_points.index(curr_dest_pt)
+    #
+    #     costs = dist([self.vehicle_start_position] +
+    #                  self.all_destination_points[:curr_dest_pt_idx] +
+    #                  self.destination_points,
+    #                  skim)
+    #
+    #     profits = 0
+    #     if len(paxes) == 1:
+    #         profits = paxes[0].request_details.trip_length * fare
+    #     else:
+    #         for pax in paxes:
+    #             profits += pax.request_details.trip_length * fare * (1 - pool_discount)
+    #
+    #     return profits - costs*operating_cost

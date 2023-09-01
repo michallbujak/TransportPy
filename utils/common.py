@@ -18,7 +18,7 @@ from base_objects.ride import Ride
 
 
 def initialise_logger(
-        logger_level: str = 'INFO'
+        logger_level: str or float = 'INFO'
 ) -> logging.Logger:
     """
     Initialise logger which will be used to provide information on consecutive algorithmic steps
@@ -29,6 +29,26 @@ def initialise_logger(
                         datefmt='%H:%M:%S', level=logger_level)
     logger = logging.getLogger()
     return logger
+
+
+def log_if_logger(
+        logger: logging.Logger or None,
+        level: float,
+        message: str
+) -> None:
+    """
+    Pass a message through the logger only if it was initialised
+    @param logger: the logging.Logger
+    @param level: 0, 10, 20, 30, 40, 50 as the levels
+    @param message: message to be logged
+    @return:
+    """
+    if logger is None:
+        return None
+    else:
+        logger.log(level, message)
+
+
 
 
 def load_config(
