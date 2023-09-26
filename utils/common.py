@@ -359,6 +359,7 @@ def move_vehicle_ride(vehicle: Vehicle,
                 _v.scheduled_travellers += [traveller]
                 _v.events.append((_v.path.current_time, _v.path.current_position, 'a', ev[2]))
             _r.destination_points.remove(ev)
+            _r.past_destination_points.append(ev)
 
         if len(_r.travellers) == 0:
             _r.active = False

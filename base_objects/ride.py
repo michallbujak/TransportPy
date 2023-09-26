@@ -30,11 +30,13 @@ class Ride:
     ):
         """
         @param travellers: list of travellers assigned to the ride
-        @param destination_points: list of city nodes which will be visited along
+        @param destination_points: list of city nodes associated
+         with events which will be visited along (node, event, traveller)
         with what happens at those locations
         """
         self.travellers = travellers
         self.destination_points = destination_points
+        self.past_destination_points = []
         self.serving_vehicle = None
         self.profitability = Profitability(
             profit=0,
@@ -49,7 +51,8 @@ class Ride:
                                 fare: float,
                                 trip_length: float,
                                 operating_cost: float,
-                                update_self: bool = False
+                                update_self: bool = False,
+                                **kwargs
                                 ) -> None or tuple[float]:
         """
         :param fare: fare per meter

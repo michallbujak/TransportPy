@@ -61,14 +61,10 @@ def admissible_future_combinations(
     if execution_time:
         start_time = time.time()
 
-    all_combinations = permutations(ride.destination_points)
+    all_combinations = ride.adm_combinations
     out = []
 
     for combination in all_combinations:
-
-        if dist([t[0] for t in all_combinations], skim) > max_distance_pickup:
-            continue
-
         for i in range(len(combination) - 1):
             c1 = combination.copy()
             c1.insert(i, new_locations[0])

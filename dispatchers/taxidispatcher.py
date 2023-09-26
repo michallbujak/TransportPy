@@ -100,26 +100,24 @@ class TaxiDispatcher(Dispatcher):
         return TaxiRide, vehicle, profitability, utility
 
     def assign_taxi(self,
-                    taxi_ride: TaxiRide,
+                    taxi_ride: TaxiRide or PoolRide,
                     vehicle: Vehicle,
                     utility: float,
                     traveller: Traveller,
                     skim: dict,
-                    current_time: dt,
-                    taxi_or_pool: str = "pool",
                     **kwargs
                     ) -> None:
         """
         Assign a taxi ride to a traveller
-        @param taxi_ride: TaxiRide object for which the traveller should be assigned
+        @param taxi_ride: TaxiRide or PoolRide object for which the traveller should be assigned
         @param vehicle: Vehicle to which the traveller should be assigned
         @param utility: calculated utility of the taxi ride
         @param traveller: Traveller object
         @param skim: skim dictionary
-        @param current_time: for logging purposes
-        @param taxi_or_pool: choose whether a ride can be further pooled or not
         @return: None
         """
+        taxi_or_pool = "taxi" if type(taxi_ride) == TaxiRide else "pool"
+
         taxi_ride.serving_vehicle = vehicle
         taxi_ride.events.append((vehicle.path.current_time,
                                  vehicle.path.closest_crossroad if
@@ -143,8 +141,11 @@ class TaxiDispatcher(Dispatcher):
 
         traveller.utilities['taxi'] = utility
 
+        if type(taxi_ride) == PoolRide:
+            taxi_ride.vehicle_start_position = vehicle.path.closest_crossroad
+
         utc.log_if_logger(kwargs.get('logger'), 30,
-                          f"{current_time}: Traveller"
+                          f"{vehicle.path.current_time}: Traveller"
                           f" {traveller} assigned to vehicle {vehicle}")
 
     def pool_utility(self,
@@ -153,7 +154,7 @@ class TaxiDispatcher(Dispatcher):
                      skim: dict,
                      current_time: dt,
                      **kwargs
-                     ) -> list[tuple]:
+                     ) -> (list, dict or None):
         """
         Calculate utility of a pool ride
         @param request: (traveller_id, origin, destination, request_time)
@@ -169,39 +170,46 @@ class TaxiDispatcher(Dispatcher):
 
         # Consider baseline taxi
         pax_cond = traveller.utilities.get('taxi') is None or False
-        if kwargs.get("attractive_only", True) and pax_cond:
-            baseline_taxi = TaxiRide(
-                traveller=traveller,
-                destination_points=new_locations,
-                ride_type='taxi'
-            )
-            closest_vehicle = self.find_closest_vehicle(
-                request=request,
-                veh_types=['pool', 'taxi'],
-                skim=skim,
-                empty_pool=True
-            )
+        baseline_taxi = PoolRide(
+            traveller=traveller,
+            destination_points=new_locations,
+            ride_type='pool'
+        )
+        closest_vehicle = self.find_closest_vehicle(
+            request=request,
+            veh_types=['pool'],
+            skim=skim,
+            empty_pool=True
+        )
 
+        if closest_vehicle is None:
+            taxi_feasible = False
+        else:
             taxi_feasible = True
 
-            if closest_vehicle is None:
-                taxi_feasible = False
+        if utils.common.compute_distance(
+                [closest_vehicle.path.current_position, request[1]],
+                skim
+        ) / closest_vehicle.vehicle_speed > maximal_pick_up:
+            taxi_feasible = False
 
-            if utils.common.compute_distance(
-                    [closest_vehicle.path.current_position, request[1]],
-                    skim
-            ) / closest_vehicle.vehicle_speed > maximal_pick_up:
-                taxi_feasible = False
+        if taxi_feasible and not pax_cond:
+            traveller.utilities['taxi'] = baseline_taxi.calculate_utility(
+                vehicle=closest_vehicle,
+                traveller=traveller,
+                fare=self.fares["taxi"],
+                skim=skim
+            )
+        else:
+            traveller.utilities['taxi'] = False
 
-            if taxi_feasible:
-                traveller.utilities['taxi'] = baseline_taxi.calculate_utility(
-                    vehicle=closest_vehicle,
-                    traveller=traveller,
-                    fare=self.fares["taxi"],
-                    skim=skim
-                )
-            else:
-                traveller.utilities['taxi'] = False
+        if taxi_feasible:
+            taxi_out = {'taxi_ride': baseline_taxi,
+                        'vehicle': closest_vehicle,
+                        'utility': traveller.utilities['taxi'],
+                        'traveller': traveller}
+        else:
+            taxi_out = None
 
         # Search through ongoing pool rides
         possible_assignments = []
@@ -232,31 +240,10 @@ class TaxiDispatcher(Dispatcher):
             if not od_combinations:
                 continue
 
-            # Filter 2: calculate whether it's profitable for operator
-            base_profitability = ride.profitability.profitability
+            output_pool = {comb: {} for comb in od_combinations}
+            adm_combs = od_combinations.copy()
 
-            output_pool = {}
-
-            for comb in od_combinations.copy():
-                profitability_comb = ride.calculate_profitability(
-                    vehicle=ride.serving_vehicle,
-                    fare=self.fares["pool"],
-                    pool_discount=self.fares["fake_uber"],
-                    operating_cost=self.operating_costs["pool"],
-                    skim=skim,
-                    destination_points=comb,
-                    additional_traveller=traveller
-                )
-                if profitability_comb[2] < base_profitability:
-                    od_combinations.remove(comb)
-                else:
-                    output_pool[comb] = {'profitability': profitability_comb}
-
-            # If it's not feasible to assign the new request
-            if not od_combinations:
-                continue
-
-            # Filter 3: utility for travellers
+            # Filter 2: utility for travellers
             if kwargs["attractive_only"]:
                 for comb in od_combinations.copy():
                     paxes = ride.travellers + ride.scheduled_travellers + traveller
@@ -270,8 +257,30 @@ class TaxiDispatcher(Dispatcher):
                     ) for pax in paxes}
                     if not all([shared_utility[key] > key.utilities['taxi'] for key in shared_utility.keys()]):
                         od_combinations.remove(comb)
+                        del output_pool[comb]
                     else:
                         output_pool[comb]['shared_utility'] = shared_utility
+
+            # If it's not feasible to assign the new request
+            if not od_combinations:
+                continue
+
+            # Filter 3: calculate whether it's profitable for operator
+            base_profitability = ride.profitability.profitability
+
+            if kwargs.get("profitable_only", True):
+                for comb in od_combinations.copy():
+                    travellers = ride.travellers + ride.scheduled_travellers + traveller
+                    profitability_comb = ride.calculate_profitability(
+                        fare=self.fares["pool"] * (1 - self.fares["pool_discount"]),
+                        trip_length=sum(t.request_details.trip_length for t in travellers),
+                        operating_cost=self.operating_costs["pool"]
+                    )
+                    if profitability_comb[2] < base_profitability:
+                        od_combinations.remove(comb)
+                        del output_pool[comb]
+                    else:
+                        output_pool[comb]['profitability'] = profitability_comb
 
             if not od_combinations:
                 continue
@@ -280,62 +289,38 @@ class TaxiDispatcher(Dispatcher):
                 possible_assignments.append((ride,
                                              comb,
                                              output_pool[comb]['profitability'],
-                                             output_pool[comb]['shared_utility']))
+                                             output_pool[comb]['shared_utility'],
+                                             adm_combs))
 
         utc.log_if_logger(kwargs.get("logger"), 10,
                           f"{current_time}: Traveller {traveller}"
-                          f" found a shared ride: {possible_assignments}")
+                          f" found a shared ride: {possible_assignments[0]}")
 
-        return sorted(possible_assignments, key=lambda x: x[2][2])
+        return sorted(possible_assignments, key=lambda x: x[2][2]), taxi_out
 
-    def assign_pool(self,
-                    possible_assignments: list,
+    @staticmethod
+    def assign_pool(possible_assignments: list[
+        PoolRide,
+        tuple or list,
+        tuple or list,
+        list
+    ],
                     traveller: Traveller,
                     skim: dict,
                     **kwargs
                     ) -> None:
 
-        current_time = kwargs.get('current_time', '')
+        best_ride, comb, profitability, utility, adm_combs = possible_assignments[0]
 
-        if possible_assignments:
-            best_ride, comb, profitability, utility = possible_assignments[0]
+        best_ride.add_traveller(
+            traveller=traveller,
+            new_profitability=profitability,
+            ods_sequence=comb,
+            skim=skim
+        )
 
-            best_ride.add_traveller(
-                traveller=traveller,
-                new_profitability=profitability,
-                ods_sequence=comb,
-                skim=skim
-            )
-
-        else:
-            utc.log_if_logger(kwargs.get("logger"), 20,
-                              f"{current_time} No ongoing pool rides"
-                              f" are attractive for {traveller}")
-
-
-            logger.warning(f"{current_time}: Traveller {traveller} assigned to a new "
-                           f"ride with the vehicle {closest_vehicle}")
-            destination_points = [(traveller.request_details.origin, 'o', traveller.traveller_id),
-                                  (traveller.request_details.destination, 'd', traveller.traveller_id)]
-            new_ride = PoolRide(
-                traveller=traveller,
-                destination_points=destination_points,
-                ride_type='pool'
-            )
-            new_ride.active = True
-            new_ride.serving_vehicle = closest_vehicle
-            new_ride.profitability.profitability = baseline_profitability
-            self.rides['pool'].append(new_ride)
-
-            veh = new_ride.serving_vehicle
-            veh.path.current_path = utc.compute_path(
-                list_of_points=[veh.path.current_position] +
-                               [t[0] for t in destination_points],
-                skim=skim
-            )
-            veh.path.closest_crossroad = veh.path.current_path[1]
-            veh.path.current_time = current_time
-            veh.path.stationary_position = False
-            veh.scheduled_travellers.append(traveller)
+        utc.log_if_logger(kwargs.get("logger"), 20,
+                          f"{best_ride.serving_vehicle.path.current_time} No ongoing pool rides"
+                          f" are attractive for {traveller}")
 
         return None

@@ -41,6 +41,7 @@ class TaxiRide(Ride):
         :param kwargs: consistence with the Ride class
         :return: profit
         """
+        raise NotImplementedError("wrong implementation")
         request = traveller.request_details
         if len(vehicle.travellers) >= 1:
             trip_dist = dist([vehicle.path.current_position, request.destination], skim)
