@@ -6,6 +6,7 @@ import utils.common as utc
 from dispatchers.taxidispatcher import TaxiDispatcher
 from base_objects.traveller import Traveller
 from base_objects.vehicle import Vehicle
+from utils.move_vehicles import move_vehicle_ride
 
 os.chdir(os.path.abspath(os.path.join(os.getcwd(), os.pardir)))
 
@@ -57,7 +58,7 @@ while events_sorted:
                     if ride.active:
                         _fares = data_bank["fare_config"]["fares"]
                         _op_costs = data_bank["fare_config"]["operating_costs"]
-                        utc.move_vehicle_ride(
+                        move_vehicle_ride(
                             vehicle=ride.serving_vehicle,
                             ride=ride,
                             move_time=time_between_events,
@@ -66,7 +67,7 @@ while events_sorted:
                         )
 
     # If the event is a new vehicle
-    if event[1][2:] == 'new_vehicle':
+    if event[1] == 'new_vehicle':
         v = event[2]
         _Dispatcher = dispatchers[event[2]['operator']]
         _Dispatcher.fleet[v['type']] += [Vehicle(
@@ -78,10 +79,10 @@ while events_sorted:
             vehicle_speed=v['speed']
         )]
 
-    if event[1][2:] == 'request':
+    if event[1] == 'request':
         traveller = Traveller(
             request=tuple(event[2]),
-            behavioural_details=data_bank["behavioural_config"]
+            behavioural_details=data_bank["behavioural_details"][event[2]['id']]
         )
         traveller.calculate_trip_length(data_bank["skim"])
         Travellers[event[2]['id']] = traveller
@@ -89,27 +90,44 @@ while events_sorted:
 
         # Kind of service one shall be offered
         if event[2]['type'] == 'pool':
-            succeeded = serving_Dispatcher.assign_pool(
-                tuple(event[2]),
-                traveller,
-                data_bank["skim"],
-                data_bank["logger"],
-                current_time
+            pool_potential, taxi_potential = serving_Dispatcher.pool_utility(
+                request=event[2],
+                traveller=traveller,
+                skim=data_bank["skim"],
+                logger=data_bank["logger"]
             )
+
+            if pool_potential:
+                serving_Dispatcher.assign_pool(
+                    possible_assignments=pool_potential,
+                    traveller=traveller,
+                    skim=data_bank["skim"]
+                )
+
+            elif not pool_potential and taxi_potential is not None:
+                serving_Dispatcher.assign_taxi(
+                    taxi_ride=taxi_potential["taxi_ride"],
+                    vehicle=taxi_potential["vehicle"],
+                    utility=taxi_potential["utility"],
+                    traveller=taxi_potential["traveller"],
+                    skim=data_bank["skim"],
+                    logger=data_bank["logger"]
+                )
+
+            elif not pool_potential and taxi_potential is None:
+                traveller.service_details.waiting_time += data_bank["simulation_config"]['refresh_density']
+
+                if data_bank['behavioural_details'][traveller.traveller_id]["maximal_waiting"] \
+                        < traveller.service_details.waiting_time:
+                    traveller.service_details.resigned = True
+
+                delayed_event = (event[0] + td(seconds=data_bank["simulation_config"]['refresh_density']),
+                                 event[1], event[2])
+                events_sorted.append(delayed_event)
+                events_sorted = sorted(events_sorted, key=lambda x: (x[0], x[1]))
+
         else:
             raise NotImplementedError("Only 'pool' viable here as for now")
-
-        if not succeeded:
-            traveller.service_details.waiting_time += data_bank["simulation_config"]['refresh_density']
-
-            if data_bank['behavioural_details'][traveller.traveller_id]["maximal_waiting"] \
-                    < traveller.service_details.waiting_time:
-                traveller.service_details.resigned = True
-
-            delayed_event = (event[0] + td(seconds=data_bank["simulation_config"]['refresh_density']),
-                             event[1], event[2])
-            events_sorted.append(delayed_event)
-            events_sorted = sorted(events_sorted, key=lambda x: (x[0], x[1]))
 
     events_sorted.pop(0)
 

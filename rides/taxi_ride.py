@@ -66,8 +66,8 @@ class TaxiRide(Ride):
         flag = len(self.travellers) >= 1
         return distance * fare * int(flag), distance * operating_cost
 
-    def calculate_utility(self,
-                          vehicle: Any,
+    @staticmethod
+    def calculate_utility(vehicle: Any,
                           traveller: Traveller,
                           fare: float,
                           skim: dict,

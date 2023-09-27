@@ -65,17 +65,21 @@ def admissible_future_combinations(
     out = []
 
     for combination in all_combinations:
-        for i in range(len(combination) - 1):
+        for i in range(len(combination)):
             c1 = combination.copy()
             c1.insert(i, new_locations[0])
 
-            if dist([t[0] for t in c1[:i]], skim) > max_distance_pickup:
+            to_pick_up = [ride.serving_vehicle.path.closest_crossroad]
+            to_pick_up += [t[0] for t in c1[:(i+1)]]
+            if dist(to_pick_up, skim) > max_distance_pickup:
                 continue
 
             for j in range(i+1, len(combination)+1):
                 c2 = c1.copy()
                 c2.insert(j, new_locations[1])
 
+                total_trip = [ride.serving_vehicle.path.closest_crossroad]
+                total_trip += [t[0] for t in c2]
                 if dist([t[0] for t in c2], skim) < max_trip_length:
                     out.append(c2)
 

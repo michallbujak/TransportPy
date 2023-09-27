@@ -8,6 +8,7 @@ import itertools
 from base_objects.traveller import Traveller
 from base_objects.ride import Ride
 from base_objects.vehicle import Vehicle
+from rides.taxi_ride import TaxiRide
 
 from utils.common import compute_distance as dist
 from utils.common import compute_path as find_path
@@ -57,7 +58,7 @@ class PoolRide(Ride):
             trip = [all_destination_points[all_destination_points.index(start):]]
             trip += [vehicle.path.current_position]
             trip += [vehicle.path.closest_crossroad]
-            trip += nodes_seq[:(nodes_seq.index(finish)+1)]
+            trip += nodes_seq[:(nodes_seq.index(finish) + 1)]
             trip_length = dist(trip, skim)
 
         else:
@@ -66,7 +67,7 @@ class PoolRide(Ride):
             pickup_delay = dist([vehicle.path.closest_crossroad] + nodes_seq[:(nodes_seq.index(start) + 1)], skim)
             pickup_delay *= vehicle.vehicle_speed
             pickup_delay += vehicle.path.to_closest_crossroads
-            trip = [nodes_seq[nodes_seq.index(start):(nodes_seq.index(finish)+1)]]
+            trip = [nodes_seq[nodes_seq.index(start):(nodes_seq.index(finish) + 1)]]
             trip_length = dist(trip, skim)
 
         # Utility calculation
@@ -82,14 +83,21 @@ class PoolRide(Ride):
                                 trip_length: float,
                                 operating_cost: float,
                                 sharing_discount: float,
+                                skim: dict,
                                 update_self: bool = False
                                 ) -> None or tuple[float]:
+        assert (self.shared and len(self.travellers) > 1) or \
+               (not self.shared and len(self.travellers) == 1), \
+            "Incorrect 'shared' parameter"
         if self.shared:
             profits = sum(t.request_details.trip_length for t in self.travellers)
-            profits *= operating_cost * (1 - sharing_discount)
+            profits *= fare * (1 - sharing_discount)
         else:
+            profits = self.travellers[0].request_details.trip_length * fare
 
-
+        veh_movement = [t[1] for t in self.events] + [t[0] for t in self.destination_points]
+        costs = dist(veh_movement, skim) * operating_cost
+        return profits, costs, profits - costs
 
     def add_traveller(self,
                       traveller: Traveller,

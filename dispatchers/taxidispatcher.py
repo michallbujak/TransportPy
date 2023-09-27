@@ -141,8 +141,9 @@ class TaxiDispatcher(Dispatcher):
 
         traveller.utilities['taxi'] = utility
 
-        if type(taxi_ride) == PoolRide:
+        if taxi_or_pool == "pool":
             taxi_ride.vehicle_start_position = vehicle.path.closest_crossroad
+            taxi_ride.adm_combinations = [taxi_ride.destination_points.copy()]
 
         utc.log_if_logger(kwargs.get('logger'), 30,
                           f"{vehicle.path.current_time}: Traveller"
@@ -152,7 +153,6 @@ class TaxiDispatcher(Dispatcher):
                      request: tuple,
                      traveller: Traveller,
                      skim: dict,
-                     current_time: dt,
                      **kwargs
                      ) -> (list, dict or None):
         """
@@ -160,13 +160,12 @@ class TaxiDispatcher(Dispatcher):
         @param request: (traveller_id, origin, destination, request_time)
         @param traveller: Traveller object
         @param skim: skim dictionary
-        @param current_time: for logging purposes
         @param kwargs: additional settings to choose pooling options
         @return:
         """
         new_locations = [(request[1], 'o', request[0]), (request[2], 'd', request[0])]
 
-        maximal_pick_up = kwargs.get("maximal_pickup", 1e6)
+        maximal_pick_up = traveller.behavioural_details["maximal_pickup"]
 
         # Consider baseline taxi
         pax_cond = traveller.utilities.get('taxi') is None or False
@@ -193,8 +192,8 @@ class TaxiDispatcher(Dispatcher):
         ) / closest_vehicle.vehicle_speed > maximal_pick_up:
             taxi_feasible = False
 
-        if taxi_feasible and not pax_cond:
-            traveller.utilities['taxi'] = baseline_taxi.calculate_utility(
+        if taxi_feasible and pax_cond:
+            traveller.utilities['taxi'] = TaxiRide.calculate_utility(
                 vehicle=closest_vehicle,
                 traveller=traveller,
                 fare=self.fares["taxi"],
@@ -222,10 +221,13 @@ class TaxiDispatcher(Dispatcher):
             max_distance_pickup = maximal_pick_up / ride.serving_vehicle.vehicle_speed
 
             # Filter 1: combinations must save kilometres
-            destination_points = list(ride.destination_points)
+            destination_points = [ride.serving_vehicle.path.closest_crossroad]\
+                                 + [t[0] for t in ride.destination_points]
             max_trip_length = utc.compute_distance(destination_points, skim)
-            max_trip_length += utc.compute_distance(new_locations, skim)
-            destination_points += new_locations
+            max_trip_length += utc.compute_distance(
+                [t[0] for t in new_locations],
+                skim)
+            # destination_points += new_locations
 
             od_combinations = utils.pool_tools.admissible_future_combinations(
                 new_locations=new_locations,
@@ -292,9 +294,16 @@ class TaxiDispatcher(Dispatcher):
                                              output_pool[comb]['shared_utility'],
                                              adm_combs))
 
-        utc.log_if_logger(kwargs.get("logger"), 10,
-                          f"{current_time}: Traveller {traveller}"
-                          f" found a shared ride: {possible_assignments[0]}")
+        if possible_assignments:
+            utc.log_if_logger(kwargs.get("logger"), 20,
+                              f"Traveller {traveller}"
+                              f" found {len(possible_assignments)}"
+                              f" admissible assignments")
+        else:
+            utc.log_if_logger(kwargs.get("logger"), 20,
+                              f"Traveller {traveller}"
+                              f" found NO admissible assignments. "
+                              f"Feasible private ride: {taxi_out is not None}")
 
         return sorted(possible_assignments, key=lambda x: x[2][2]), taxi_out
 

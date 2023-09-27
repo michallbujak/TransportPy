@@ -4,7 +4,7 @@ Basic object for managing a ride
 from abc import abstractmethod
 from dataclasses import dataclass
 
-from traveller import Traveller
+from base_objects.traveller import Traveller
 
 
 @dataclass

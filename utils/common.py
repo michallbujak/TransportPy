@@ -6,15 +6,12 @@ import pickle
 import logging
 
 from datetime import datetime as dt
-from datetime import timedelta, date
+from datetime import date
 
 import pandas as pd
 import numpy as np
 import osmnx as ox
 import networkx as nx
-
-from base_objects.vehicle import Vehicle
-from base_objects.ride import Ride
 
 
 def initialise_logger(
@@ -227,8 +224,8 @@ def sort_events_chronologically(
     @type requests: pd.Dataframe
     @return list of results
     """
-    r_t = [(str_to_datetime(req['request_time']), '2_request', req) for num, req in requests.iterrows()]
-    v_st = [(str_to_datetime(veh['start_time']), '0_new_vehicle', veh) for num, veh in vehicles.iterrows()]
+    r_t = [(str_to_datetime(req['request_time']), 'request', req) for num, req in requests.iterrows()]
+    v_st = [(str_to_datetime(veh['start_time']), 'new_vehicle', veh) for num, veh in vehicles.iterrows()]
     return sorted(r_t + v_st, key=lambda x: (x[0], x[1]))
 
 
@@ -280,7 +277,7 @@ def difference_times(time1, time2) -> int:
 
     time1 = amend_time_type(time1)
     time2 = amend_time_type(time2)
-    return int((time2 - time1).total_seconds())
+    return int((time1 - time2).total_seconds())
 
 
 def compute_path(
@@ -304,142 +301,6 @@ def compute_path(
         raise NotImplementedError("Currently not implemented")
 
     return path
-
-
-def move_vehicle_ride(vehicle: Vehicle,
-                      ride: Ride,
-                      move_time: int,
-                      skim: dict,
-                      logger: logging.Logger,
-                      **kwargs
-                      ) -> None:
-    """
-    Function which is designed to move the vehicle along request route
-    :param vehicle: Vehicle object
-    :param ride: Ride object
-    :param move_time: time by which the vehicle is moved
-    :param skim: dictionary with distances
-    :param simulation_config: simulation configuration
-    :param logger: logging purposes
-    @type vehicle: Vehicle
-    @type ride: Ride
-    @type move_time: int
-    @type skim: dict
-    @type logger: logging.Logger
-    """
-
-    def check_if_event(_r, _v):
-        curr_time = _v.path.current_time
-        evs = [t for t in _r.destination_points if t[0] == _v.path.current_position]
-        for ev in evs:
-            traveller = [t for t in _r.travellers if t.traveller_id == ev[2]][0]
-            if ev[1] == 'o':
-                _v.events.append((_v.path.current_time, _v.path.current_position, 'p', ev[2]))
-                try:
-                    _r.events += [(_v.path.current_time, _v.path.current_position, 'o', ev[2])]
-                except AttributeError:
-                    pass
-                _v.travellers += [traveller]
-                try:
-                    logger.info(f"{curr_time}: Traveller {ev[2]} joined vehicle {_v}")
-                    _v.scheduled_travellers.remove([t for t in _v.scheduled_travellers if t.traveller_id == ev[2]][0])
-                except AttributeError:
-                    pass
-            if ev[1] == 'd':
-                _r.travellers.remove(traveller)
-                _r.events.append((_v.path.current_time, _v.path.current_position, 'd', ev[2]))
-                _v.travellers.remove(traveller)
-                _v.events.append((_v.path.current_time, _v.path.current_position, 'd', ev[2]))
-                logger.info(f"{curr_time}: Traveller {traveller} finished trip")
-
-                if kwargs.get('pool_capacity_freed', False):
-                    _v.available = True
-
-            if ev[1] == 'a':
-                _v.scheduled_travellers += [traveller]
-                _v.events.append((_v.path.current_time, _v.path.current_position, 'a', ev[2]))
-            _r.destination_points.remove(ev)
-            _r.past_destination_points.append(ev)
-
-        if len(_r.travellers) == 0:
-            _r.active = False
-
-        return _r, _v
-
-    avg_speed = vehicle.vehicle_speed
-    time_left = move_time
-
-    while vehicle.path.current_path is not None:
-        assert (
-                vehicle.path.closest_crossroad is not None
-        ), "The path has not been updated, vehicle does not have a path to follow"
-
-        vehicle.path.stationary_position = False
-
-        distance_to_crossroad = compute_distance(
-            [vehicle.path.current_position, vehicle.path.current_path[1]], skim
-        )
-        time_required_to_crossroad = \
-            distance_to_crossroad / avg_speed - vehicle.path.time_between_crossroads
-        time_required_to_crossroad = int(time_required_to_crossroad)
-
-        if time_left < time_required_to_crossroad:
-            # not sufficient time to reach the nearest crossroad
-            logger.debug(f"Vehicle {vehicle}: Insufficient time to reach"
-                         f" crossroad {vehicle.path.current_path[1]}")
-            vehicle.path.time_between_crossroads = vehicle.path.time_between_crossroads + time_left
-            vehicle.path.to_closest_crossroads = time_required_to_crossroad - vehicle.path.time_between_crossroads
-            vehicle.path.current_time = vehicle.path.current_time + timedelta(seconds=time_left)
-            ride, vehicle = check_if_event(ride, vehicle)
-            break
-
-        # First check if something happens at the initial node
-        ride, vehicle = check_if_event(ride, vehicle)
-
-        # sufficient time to reach the nearest crossroad
-        logger.debug(f"{vehicle.path.current_time}: Vehicle {vehicle}: Reached"
-                     f" crossroad {vehicle.path.current_path[1]}")
-        vehicle.mileage += distance_to_crossroad
-        time_left -= time_required_to_crossroad
-        vehicle.path.current_time = vehicle.path.current_time + timedelta(
-            seconds=time_required_to_crossroad
-        )
-        vehicle.path.current_position = vehicle.path.current_path[1]
-        vehicle.path.current_path = vehicle.path.current_path[1:]
-        vehicle.path.time_between_crossroads = 0
-        vehicle.path.to_closest_crossroads = None
-
-        # Update traveller detailed movement
-        for trav in vehicle.travellers:
-            if ride.ride_type in trav.distance_travelled.keys():
-                trav.distance_travelled[ride.ride_type] += distance_to_crossroad
-            else:
-                trav.distance_travelled[ride.ride_type] = distance_to_crossroad
-
-        ride, vehicle = check_if_event(ride, vehicle)
-
-        if len(vehicle.path.current_path) == 1:
-            vehicle.path.current_path = None
-            vehicle.path.closest_crossroad = None
-            vehicle.path.stationary_position = True
-            vehicle.available = True
-            ride.active = False
-            logger.warning(f"{vehicle.path.current_time}: "
-                           f"Ride {ride} finished with vehicle {vehicle}")
-
-        else:
-            vehicle.path.closest_crossroad = vehicle.path.current_path[1]
-
-        # Check from the request perspective whether something happens at those nodes
-        ride, vehicle = check_if_event(ride, vehicle)
-
-    if vehicle.path.current_time >= vehicle.path.end_time:
-        vehicle.available = False
-
-    logger.debug(f"{vehicle.path.current_time}:"
-                 f" Vehicle {vehicle} moved by {move_time}s")
-
-    return None
 
 
 def post_hoc_analysis(
