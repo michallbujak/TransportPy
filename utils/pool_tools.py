@@ -74,7 +74,7 @@ def admissible_future_combinations(
             if dist(to_pick_up, skim) > max_distance_pickup:
                 continue
 
-            for j in range(i+1, len(combination)+1):
+            for j in range(i+1, len(combination)+2):
                 c2 = c1.copy()
                 c2.insert(j, new_locations[1])
 

@@ -42,9 +42,13 @@ class TaxiDispatcher(Dispatcher):
                              ) -> Vehicle or None:
         """
         Find the most suitable vehicle
+        @param request: (node, event, traveller)
+        @param veh_types: pool, taxi etc.
+        @param skim: skim matrix
+        @return (time to arrival, Vehicle) or None (not found)
         """
         node = request[1]
-        dist = (1e6, None)
+        time_base = (1e6, None)
         pool_flag = kwargs.get('empty_pool', False)
 
         # Find fitting fleet
@@ -54,10 +58,16 @@ class TaxiDispatcher(Dispatcher):
                     if len(veh.scheduled_travellers) + len(veh.travellers) != 0:
                         continue
                 if veh.available:
-                    dist_new = utc.compute_distance([node, veh.path.current_position], skim)
-                    if dist[0] > dist_new:
-                        dist = (dist_new, veh)
-        return dist[1]
+                    time_new = utc.compute_distance([node, veh.path.current_position], skim)
+                    time_new /= veh.vehicle_speed
+                    if time_base[0] > time_new:
+                        time_base = (time_new, veh)
+
+        if time_base[1] is None:
+            return None
+
+        else:
+            return time_base
 
     def taxi_utility(self,
                      request: tuple,
@@ -74,14 +84,21 @@ class TaxiDispatcher(Dispatcher):
         """
         only_taxi = kwargs.get("only_taxi", False)
         if only_taxi:
-            vehicle = self.find_closest_vehicle(request, ["taxi"], skim)
+            closest_vehicle = self.find_closest_vehicle(request, ["taxi"], skim)
         else:
-            vehicle = self.find_closest_vehicle(request, ["taxi", "pool"], skim, empty_pool=True)
+            closest_vehicle = self.find_closest_vehicle(request, ["taxi", "pool"],
+                                                        skim, empty_pool=True)
+
+        if closest_vehicle is None:
+            return None
+
+        vehicle, pickup_delay = closest_vehicle
 
         locations = [(request[1], 'o', request[0]), (request[2], 'd', request[0])]
         new_ride = TaxiRide([traveller], locations, 'taxi')
         utility = new_ride.calculate_utility(
             vehicle=vehicle,
+            pickup_delay=pickup_delay,
             traveller=traveller,
             fare=self.fares['taxi'],
             skim=skim
@@ -145,6 +162,9 @@ class TaxiDispatcher(Dispatcher):
             taxi_ride.vehicle_start_position = vehicle.path.closest_crossroad
             taxi_ride.adm_combinations = [taxi_ride.destination_points.copy()]
 
+        if kwargs.get('pickup_delay') is not None:
+            traveller.service_details.pickup_delay = kwargs['pickup_delay']
+
         utc.log_if_logger(kwargs.get('logger'), 30,
                           f"{vehicle.path.current_time}: Traveller"
                           f" {traveller} assigned to vehicle {vehicle}")
@@ -187,14 +207,15 @@ class TaxiDispatcher(Dispatcher):
             taxi_feasible = True
 
         if utils.common.compute_distance(
-                [closest_vehicle.path.current_position, request[1]],
+                [closest_vehicle[1].path.current_position, request[1]],
                 skim
-        ) / closest_vehicle.vehicle_speed > maximal_pick_up:
+        ) / closest_vehicle[1].vehicle_speed > maximal_pick_up:
             taxi_feasible = False
 
         if taxi_feasible and pax_cond:
             traveller.utilities['taxi'] = TaxiRide.calculate_utility(
-                vehicle=closest_vehicle,
+                vehicle=closest_vehicle[1],
+                pickup_delay=closest_vehicle[0],
                 traveller=traveller,
                 fare=self.fares["taxi"],
                 skim=skim
@@ -204,7 +225,8 @@ class TaxiDispatcher(Dispatcher):
 
         if taxi_feasible:
             taxi_out = {'taxi_ride': baseline_taxi,
-                        'vehicle': closest_vehicle,
+                        'vehicle': closest_vehicle[1],
+                        'pickup_delay': closest_vehicle[0],
                         'utility': traveller.utilities['taxi'],
                         'traveller': traveller}
         else:
@@ -242,26 +264,27 @@ class TaxiDispatcher(Dispatcher):
             if not od_combinations:
                 continue
 
-            output_pool = {comb: {} for comb in od_combinations}
+            output_pool = {tuple(comb): {} for comb in od_combinations}
             adm_combs = od_combinations.copy()
 
             # Filter 2: utility for travellers
-            if kwargs["attractive_only"]:
+            if kwargs.get("attractive_only", True):
                 for comb in od_combinations.copy():
-                    paxes = ride.travellers + ride.scheduled_travellers + traveller
+                    paxes = ride.travellers + [traveller]
                     shared_utility = {pax: ride.calculate_utility(
                         vehicle=ride.serving_vehicle,
                         traveller=pax,
                         nodes_seq=comb,
                         no_travellers=len(paxes),
                         fare=self.fares['pool'],
+                        pool_discount=self.fares['pool_discount'],
                         skim=skim
                     ) for pax in paxes}
                     if not all([shared_utility[key] > key.utilities['taxi'] for key in shared_utility.keys()]):
                         od_combinations.remove(comb)
-                        del output_pool[comb]
+                        del output_pool[tuple(comb)]
                     else:
-                        output_pool[comb]['shared_utility'] = shared_utility
+                        output_pool[tuple(comb)]['shared_utility'] = shared_utility
 
             # If it's not feasible to assign the new request
             if not od_combinations:
@@ -280,9 +303,9 @@ class TaxiDispatcher(Dispatcher):
                     )
                     if profitability_comb[2] < base_profitability:
                         od_combinations.remove(comb)
-                        del output_pool[comb]
+                        del output_pool[tuple(comb)]
                     else:
-                        output_pool[comb]['profitability'] = profitability_comb
+                        output_pool[tuple(comb)]['profitability'] = profitability_comb
 
             if not od_combinations:
                 continue
@@ -290,8 +313,8 @@ class TaxiDispatcher(Dispatcher):
             for comb in od_combinations:
                 possible_assignments.append((ride,
                                              comb,
-                                             output_pool[comb]['profitability'],
-                                             output_pool[comb]['shared_utility'],
+                                             output_pool[tuple(comb)]['profitability'],
+                                             output_pool[tuple(comb)]['shared_utility'],
                                              adm_combs))
 
         if possible_assignments:

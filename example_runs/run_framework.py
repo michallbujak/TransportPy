@@ -108,6 +108,7 @@ while events_sorted:
                 serving_Dispatcher.assign_taxi(
                     taxi_ride=taxi_potential["taxi_ride"],
                     vehicle=taxi_potential["vehicle"],
+                    pickup_delay=taxi_potential['pickup_delay'],
                     utility=taxi_potential["utility"],
                     traveller=taxi_potential["traveller"],
                     skim=data_bank["skim"],

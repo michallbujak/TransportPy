@@ -33,8 +33,8 @@ class PoolRide(Ride):
                           vehicle: Any,
                           traveller: Traveller,
                           nodes_seq: list,
-                          no_travellers: int,
                           fare: float,
+                          pool_discount: float,
                           skim: dict,
                           **kwargs
                           ) -> float:
@@ -42,40 +42,60 @@ class PoolRide(Ride):
         Calculate utility for the traveller
         :param vehicle: Vehicle or child class object
         :param traveller: Traveller object
-        :param nodes_seq: nodes to be visited along the route
-        :param no_travellers: number of travellers
+        :param nodes_seq: (node, event, traveller)
+         to be visited along the route
         :param fare: fare in monetary units/meter
+        :param pool_discount: discount for a pooled ride
         :param skim: distances dictionary
         :return: utility
         """
         # Check if already picked_up:
-        if traveller.service_details.pick_up_delay is not None:
-            all_destination_points = self.past_destination_points + self.destination_points
-            pickup_delay = traveller.service_details.pick_up_delay
+        if traveller.service_details.pickup_delay is not None:
+            all_destination_points = self.past_destination_points + nodes_seq
+            pickup_delay = traveller.service_details.pickup_delay
             start = [node for node in all_destination_points
-                     if (node[1] == 'o' and node[2] == traveller)][0]
-            finish = [node for node in nodes_seq if (node[1] == 'd' and node[2] == traveller)][0]
-            trip = [all_destination_points[all_destination_points.index(start):]]
-            trip += [vehicle.path.current_position]
+                     if (node[1] == 'o' and node[2] == traveller.traveller_id)][0]
+            finish = [node for node in nodes_seq
+                      if (node[1] == 'd' and node[2] == traveller.traveller_id)][0]
+            trip = [vehicle.path.current_position]
             trip += [vehicle.path.closest_crossroad]
-            trip += nodes_seq[:(nodes_seq.index(finish) + 1)]
+            trip += [t[0] for t in all_destination_points[
+                    all_destination_points.index(start):
+                    (all_destination_points.index(finish)+1)]]
             trip_length = dist(trip, skim)
 
         else:
-            start = [node for node in nodes_seq if (node[1] == 'o' and node[2] == traveller)][0]
-            finish = [node for node in nodes_seq if (node[1] == 'd' and node[2] == traveller)][0]
-            pickup_delay = dist([vehicle.path.closest_crossroad] + nodes_seq[:(nodes_seq.index(start) + 1)], skim)
+            start = [node for node in nodes_seq
+                     if (node[1] == 'o' and node[2] == traveller.traveller_id)][0]
+            finish = [node for node in nodes_seq
+                      if (node[1] == 'd' and node[2] == traveller.traveller_id)][0]
+            pickup_delay = dist([vehicle.path.closest_crossroad]
+                                + nodes_seq[:(nodes_seq.index(start) + 1)], skim)
             pickup_delay *= vehicle.vehicle_speed
             pickup_delay += vehicle.path.to_closest_crossroads
-            trip = [nodes_seq[nodes_seq.index(start):(nodes_seq.index(finish) + 1)]]
-            trip_length = dist(trip, skim)
+            trip = [t[0] for t in
+                    nodes_seq[nodes_seq.index(start):
+                              (nodes_seq.index(finish) + 1)]]
+            trip_length = dist([t[0] for t in trip], skim)
 
         # Utility calculation
         pref = traveller.behavioural_details
-        utility = -trip_length * fare
-        utility -= trip_length / vehicle.vehicle_speed * pref['VoT'] * pref['pool_rides'][no_travellers]
-        utility -= pickup_delay * pref['VoT'] * pref['pickup_delay_sensitivity']
-        utility -= pref['pool_rides']['PfS_const']
+
+        if kwargs.get("pooled_ride"):
+            fare_updated = fare * (1 - pool_discount)
+            no_travellers = len(self.travellers)
+            trip_time = trip_length / vehicle.vehicle_speed
+
+            utility = -trip_length * fare_updated
+            utility -= trip_time*pref['VoT']*pref['pool_rides']['PfS'][no_travellers]
+            utility -= pickup_delay*pref['VoT'] * pref['pickup_delay_sensitivity']
+            utility -= pref['pool_rides']['PfS_const']
+
+        else:
+            utility = -trip_length * fare
+            utility -= trip_length / vehicle.vehicle_speed * pref['VoT']
+            utility -= pickup_delay * pref['VoT'] * pref['pickup_delay_sensitivity']
+
         return utility
 
     def calculate_profitability(self,

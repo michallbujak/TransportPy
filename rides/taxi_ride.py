@@ -84,8 +84,13 @@ class TaxiRide(Ride):
         """
         request = traveller.request_details
         trip_length = traveller.request_details.trip_length
-        pickup_delay = dist([request.origin, vehicle.path.current_position], skim) \
-                       / vehicle.vehicle_speed
+
+        if kwargs.get('pickup_delay') is None:
+            pickup_delay = dist([request.origin, vehicle.path.current_position], skim) \
+                           / vehicle.vehicle_speed
+        else:
+            pickup_delay = kwargs['pickup_delay']
+
         pref = traveller.behavioural_details
         utility = -trip_length * fare
         utility -= trip_length / vehicle.vehicle_speed * pref['VoT']
