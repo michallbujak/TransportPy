@@ -46,36 +46,15 @@ class Ride:
         self.ride_type = ride_type
         self.active = True
 
-    @abstractmethod
-    def calculate_profitability(self,
-                                fare: float,
-                                trip_length: float,
-                                operating_cost: float,
-                                update_self: bool = False,
-                                **kwargs
-                                ) -> None or tuple[float]:
-        """
-        :param fare: fare per meter
-        :param trip_length: length of the trip (meters)
-        :param operating_cost: cost of vehicle travelling per meter
-        :param update_self: or return values
-        :return: update self
-        Calculate ride's profitability
-        """
-        paxes = self.travellers
-        if update_self:
-            self.profitability.profit = sum(pax.request_details.cost for pax in paxes)
-            self.profitability.cost = trip_length*operating_cost
-            self.profitability.profitability = self.profitability.profit - self.profitability.cost
-
-            return None
-
-        else:
-            profit = sum(pax.request_details.cost for pax in paxes)
-            cost = trip_length*operating_cost
-            profitability = self.profitability.profit - self.profitability.cost
-
-            return profit, cost, profitability
+    # @abstractmethod
+    # def calculate_profitability(self,
+    #                             **kwargs
+    #                             ) -> None or tuple[float]:
+    #     """
+    #     :return: update self
+    #     Calculate ride's profitability
+    #     """
+    #     raise NotImplementedError("method calculate_profitability not implemented")
 
     @abstractmethod
     def calculate_utility(self, **kwargs):

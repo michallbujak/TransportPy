@@ -2,7 +2,7 @@
     "fares": {
         "fake_uber": {
           "taxi": 0.0015,
-          "pool": 0.0012,
+          "pool": 0.0014,
           "pool_discount": 0.25
         }
     },

@@ -121,6 +121,7 @@ class TaxiDispatcher(Dispatcher):
                     vehicle: Vehicle,
                     utility: float,
                     traveller: Traveller,
+                    profitability: tuple[float],
                     skim: dict,
                     **kwargs
                     ) -> None:
@@ -130,6 +131,7 @@ class TaxiDispatcher(Dispatcher):
         @param vehicle: Vehicle to which the traveller should be assigned
         @param utility: calculated utility of the taxi ride
         @param traveller: Traveller object
+        @param profitability: a tuple (profit, cost, proftability)
         @param skim: skim dictionary
         @return: None
         """
@@ -142,6 +144,7 @@ class TaxiDispatcher(Dispatcher):
                                  else vehicle.path.current_position,
                                  'a',
                                  traveller.traveller_id))
+        taxi_ride.profitability = profitability
         vehicle.available = False
         vehicle.scheduled_travellers = [traveller]
         vehicle.path.current_path = utc.compute_path(
@@ -220,6 +223,7 @@ class TaxiDispatcher(Dispatcher):
                 fare=self.fares["taxi"],
                 skim=skim
             )
+
         else:
             traveller.utilities['taxi'] = False
 
@@ -228,7 +232,12 @@ class TaxiDispatcher(Dispatcher):
                         'vehicle': closest_vehicle[1],
                         'pickup_delay': closest_vehicle[0],
                         'utility': traveller.utilities['taxi'],
-                        'traveller': traveller}
+                        'traveller': traveller,
+                        'profitability': baseline_taxi.calculate_profitability(
+                            fare=self.fares["pool"],
+                            operating_cost=self.operating_costs["pool"],
+                            skim=skim
+                        )}
         else:
             taxi_out = None
 

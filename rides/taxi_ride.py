@@ -23,14 +23,14 @@ class TaxiRide(Ride):
     def __repr__(self):
         return "taxi"
 
-    def calculate_profitability(self,
-                                vehicle: Any,
+    @staticmethod
+    def calculate_profitability(vehicle: Any,
                                 traveller: Traveller,
                                 fare: float,
                                 operating_cost: float,
                                 skim: dict,
                                 **kwargs
-                                ) -> float:
+                                ) -> tuple[float, float, float]:
         """
         Calculate a profitability of a ride
         :param vehicle: Vehicle or child class object
@@ -41,15 +41,12 @@ class TaxiRide(Ride):
         :param kwargs: consistence with the Ride class
         :return: profit
         """
-        raise NotImplementedError("wrong implementation")
         request = traveller.request_details
-        if len(vehicle.travellers) >= 1:
-            trip_dist = dist([vehicle.path.current_position, request.destination], skim)
-            pickup_dist = 0
-        else:
-            trip_dist = dist([request.origin, request.destination], skim)
-            pickup_dist = dist([vehicle.path.current_position, request.origin], skim)
-        return trip_dist * fare - (trip_dist + pickup_dist) * operating_cost
+        profit = request.trip_length * fare
+        cost = dist([vehicle.current_position, request.origin], skim)
+        cost += request.trip_length
+        cost *= operating_cost
+        return profit, cost, profit-cost
 
     def calculate_unit_profitability(self,
                                      distance: float,

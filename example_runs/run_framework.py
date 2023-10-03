@@ -111,6 +111,7 @@ while events_sorted:
                     pickup_delay=taxi_potential['pickup_delay'],
                     utility=taxi_potential["utility"],
                     traveller=taxi_potential["traveller"],
+                    profitability=taxi_potential["profitability"],
                     skim=data_bank["skim"],
                     logger=data_bank["logger"]
                 )

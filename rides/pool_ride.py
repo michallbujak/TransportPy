@@ -51,44 +51,47 @@ class PoolRide(Ride):
         """
         # Check if already picked_up:
         if traveller.service_details.pickup_delay is not None:
-            all_destination_points = self.past_destination_points + nodes_seq
             pickup_delay = traveller.service_details.pickup_delay
-            start = [node for node in all_destination_points
+            start = [node for node in self.past_destination_points
                      if (node[1] == 'o' and node[2] == traveller.traveller_id)][0]
             finish = [node for node in nodes_seq
                       if (node[1] == 'd' and node[2] == traveller.traveller_id)][0]
-            trip = [vehicle.path.current_position]
+            start_id = self.past_destination_points.index(start)
+            finish_id = nodes_seq.index(finish)
+            trip = [t[0] for t in self.past_destination_points[start_id:]]
+            trip += [vehicle.path.current_position]
             trip += [vehicle.path.closest_crossroad]
-            trip += [t[0] for t in all_destination_points[
-                    all_destination_points.index(start):
-                    (all_destination_points.index(finish)+1)]]
+            trip += [t[0] for t in nodes_seq[:(finish_id + 1)]]
             trip_length = dist(trip, skim)
 
         else:
             start = [node for node in nodes_seq
                      if (node[1] == 'o' and node[2] == traveller.traveller_id)][0]
+            start_id = nodes_seq.index(start)
             finish = [node for node in nodes_seq
                       if (node[1] == 'd' and node[2] == traveller.traveller_id)][0]
+            finish_id = nodes_seq.index(finish)
             pickup_delay = dist([vehicle.path.closest_crossroad]
-                                + nodes_seq[:(nodes_seq.index(start) + 1)], skim)
+                                + [t[0] for t in nodes_seq[:(start_id + 1)]],
+                                skim)
             pickup_delay *= vehicle.vehicle_speed
             pickup_delay += vehicle.path.to_closest_crossroads
             trip = [t[0] for t in
                     nodes_seq[nodes_seq.index(start):
-                              (nodes_seq.index(finish) + 1)]]
-            trip_length = dist([t[0] for t in trip], skim)
+                              (finish_id + 1)]]
+            trip_length = dist(trip, skim)
 
         # Utility calculation
         pref = traveller.behavioural_details
 
-        if kwargs.get("pooled_ride"):
+        if kwargs.get("pooled_ride", True):
             fare_updated = fare * (1 - pool_discount)
             no_travellers = len(self.travellers)
             trip_time = trip_length / vehicle.vehicle_speed
 
             utility = -trip_length * fare_updated
-            utility -= trip_time*pref['VoT']*pref['pool_rides']['PfS'][no_travellers]
-            utility -= pickup_delay*pref['VoT'] * pref['pickup_delay_sensitivity']
+            utility -= trip_time * pref['VoT'] * pref['pool_rides']['PfS'][str(no_travellers)]
+            utility -= pickup_delay * pref['VoT'] * pref['pickup_delay_sensitivity']
             utility -= pref['pool_rides']['PfS_const']
 
         else:
@@ -100,10 +103,9 @@ class PoolRide(Ride):
 
     def calculate_profitability(self,
                                 fare: float,
-                                trip_length: float,
                                 operating_cost: float,
-                                sharing_discount: float,
                                 skim: dict,
+                                sharing_discount: float or None = None,
                                 update_self: bool = False
                                 ) -> None or tuple[float]:
         assert (self.shared and len(self.travellers) > 1) or \
@@ -117,7 +119,11 @@ class PoolRide(Ride):
 
         veh_movement = [t[1] for t in self.events] + [t[0] for t in self.destination_points]
         costs = dist(veh_movement, skim) * operating_cost
-        return profits, costs, profits - costs
+
+        if update_self:
+            self.profitability = (profits, costs, profits - costs)
+        else:
+            return profits, costs, profits - costs
 
     def add_traveller(self,
                       traveller: Traveller,
