@@ -144,7 +144,9 @@ class TaxiDispatcher(Dispatcher):
                                  else vehicle.path.current_position,
                                  'a',
                                  traveller.traveller_id))
-        taxi_ride.profitability = profitability
+        taxi_ride.profitability.revenue = profitability[0]
+        taxi_ride.profitability.cost = profitability[1]
+        taxi_ride.profitability.profit = profitability[2]
         vehicle.available = False
         vehicle.scheduled_travellers = [traveller]
         vehicle.path.current_path = utc.compute_path(
@@ -300,11 +302,11 @@ class TaxiDispatcher(Dispatcher):
                 continue
 
             # Filter 3: calculate whether it's profitable for operator
-            base_profitability = ride.profitability.profitability
+            base_profitability = ride.profitability.profit
 
             if kwargs.get("profitable_only", True):
                 for comb in od_combinations.copy():
-                    travellers = ride.travellers + ride.scheduled_travellers + traveller
+                    travellers = ride.travellers + [traveller]
                     profitability_comb = ride.calculate_profitability(
                         fare=self.fares["pool"] * (1 - self.fares["pool_discount"]),
                         trip_length=sum(t.request_details.trip_length for t in travellers),

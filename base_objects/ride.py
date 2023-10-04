@@ -12,9 +12,9 @@ class Profitability:
     """
     Store information regarding ride's profitability
     """
-    profit: float
+    revenue: float
     cost: float
-    profitability: float or None
+    profit: float or None
 
 
 class Ride:
@@ -39,9 +39,9 @@ class Ride:
         self.past_destination_points = []
         self.serving_vehicle = None
         self.profitability = Profitability(
-            profit=0,
+            revenue=0,
             cost=0,
-            profitability=None
+            profit=None
         )
         self.ride_type = ride_type
         self.active = True

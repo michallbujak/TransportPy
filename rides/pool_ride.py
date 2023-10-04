@@ -105,25 +105,40 @@ class PoolRide(Ride):
                                 fare: float,
                                 operating_cost: float,
                                 skim: dict,
+                                new_ods: list or None = None,
+                                additional_traveller: Traveller or None = None,
                                 sharing_discount: float or None = None,
                                 update_self: bool = False
                                 ) -> None or tuple[float]:
-        assert (self.shared and len(self.travellers) > 1) or \
-               (not self.shared and len(self.travellers) == 1), \
-            "Incorrect 'shared' parameter"
-        if self.shared:
-            profits = sum(t.request_details.trip_length for t in self.travellers)
-            profits *= fare * (1 - sharing_discount)
+        if additional_traveller is not None:
+            travellers = self.travellers + [additional_traveller]
         else:
-            profits = self.travellers[0].request_details.trip_length * fare
+            travellers = self.travellers
+        if len(travellers) == 1:
+            shared = False
+        else:
+            shared = True
 
-        veh_movement = [t[1] for t in self.events] + [t[0] for t in self.destination_points]
-        costs = dist(veh_movement, skim) * operating_cost
+        if shared:
+            revenue = sum(t.request_details.trip_length for t in travellers)
+            revenue *= fare * (1 - sharing_discount)
+        else:
+            revenue = travellers[0].request_details.trip_length * fare
+
+        veh_movement = [t[1] for t in self.events]
+        if new_ods is None:
+            veh_movement += [t[0] for t in self.destination_points]
+        else:
+            veh_movement += [t[0] for t in new_ods]
+
+        cost = dist(veh_movement, skim) * operating_cost
 
         if update_self:
-            self.profitability = (profits, costs, profits - costs)
+            self.profitability.revenue = revenue
+            self.profitability.cost = cost
+            self.profitability.profit = revenue - cost
         else:
-            return profits, costs, profits - costs
+            return revenue, cost, revenue - cost
 
     def add_traveller(self,
                       traveller: Traveller,
@@ -136,7 +151,7 @@ class PoolRide(Ride):
         If a ride is considered attractive for the new traveller
         assign him/her to the ride
         @param traveller: Traveller who is to be assigned
-        @param new_profitability: values calculated prior to assignment (profit, cost, profitability)
+        @param new_profitability: values calculated prior to assignment (revenue, cost, profit)
         @param ods_sequence: sequence of origins and destinations along the route
         @param adm_combinations: list of sequences of admissible combinations
         @param skim: skim dictionary
@@ -156,9 +171,9 @@ class PoolRide(Ride):
         )
 
         # Update self
-        self.profitability.profit = new_profitability[0]
+        self.profitability.revenue = new_profitability[0]
         self.profitability.cost = new_profitability[1]
-        self.profitability.profitability = new_profitability[2]
+        self.profitability.profit = new_profitability[2]
         self.travellers.append(traveller)
         self.destination_points = ods_sequence
         self.shared = True

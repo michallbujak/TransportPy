@@ -39,14 +39,14 @@ class TaxiRide(Ride):
         :param operating_cost: operating cost in units/meter
         :param skim: distances dictionary
         :param kwargs: consistence with the Ride class
-        :return: profit
+        :return: profitability
         """
         request = traveller.request_details
-        profit = request.trip_length * fare
+        revenue = request.trip_length * fare
         cost = dist([vehicle.current_position, request.origin], skim)
         cost += request.trip_length
         cost *= operating_cost
-        return profit, cost, profit-cost
+        return revenue, cost, revenue-cost
 
     def calculate_unit_profitability(self,
                                      distance: float,
