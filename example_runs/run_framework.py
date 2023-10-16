@@ -140,11 +140,24 @@ while events_sorted:
                     veh.available = False
 
     if len(events_sorted) == 0:
-        _rides = [d.rides.values() for d in dispatchers]
-        all_rides = [r for rt in _rides for r in rt]
+        all_rides = []
+        all_vehicles = []
+        for _Dispatcher in dispatchers.values():
+            for _ride_type in _Dispatcher.rides.keys():
+                all_rides += _Dispatcher.rides[_ride_type]
+            for _veh_type in _Dispatcher.fleet.keys():
+                all_vehicles += _Dispatcher.fleet[_veh_type]
+
         if not all(not r.active for r in all_rides):
             events_sorted.append((
                 current_time + td(seconds=data_bank["simulation_config"]['refresh_density']),
                 None,
                 None
             ))
+
+# utc.post_hoc_analysis(vehicles=Dispatcher.fleet['pool'],
+#                       rides=Dispatcher.rides['pool'],
+#                       travellers=Travellers,
+#                       config=simulation_config,
+#                       skim=skim,
+#                       logger=logger)

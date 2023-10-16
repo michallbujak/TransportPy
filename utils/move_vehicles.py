@@ -42,9 +42,7 @@ def move_vehicle_ride(vehicle: Vehicle,
                 try:
                     utc.log_if_logger(kwargs.get("logger"), 20,
                                          f"{curr_time}: Traveller {ev[2]} joined vehicle {_v}")
-                    _v.scheduled_travellers.remove(
-                        [t for t in _v.scheduled_travellers if t.traveller_id == ev[2]][0]
-                    )
+                    _v.scheduled_travellers.remove(traveller)
                 except AttributeError:
                     pass
             if ev[1] == 'd':
@@ -70,7 +68,11 @@ def move_vehicle_ride(vehicle: Vehicle,
             except AttributeError:
                 pass
 
-            _r.destination_points.remove(ev)
+            try:
+                _r.destination_points.remove(ev)
+            except ValueError:
+                pass
+
             _r.past_destination_points.append(ev)
 
         if len(_r.travellers) == 0:

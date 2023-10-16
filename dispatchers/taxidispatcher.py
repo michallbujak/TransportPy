@@ -306,11 +306,14 @@ class TaxiDispatcher(Dispatcher):
 
             if kwargs.get("profitable_only", True):
                 for comb in od_combinations.copy():
-                    travellers = ride.travellers + [traveller]
                     profitability_comb = ride.calculate_profitability(
-                        fare=self.fares["pool"] * (1 - self.fares["pool_discount"]),
-                        trip_length=sum(t.request_details.trip_length for t in travellers),
-                        operating_cost=self.operating_costs["pool"]
+                        fare=self.fares["pool"],
+                        operating_cost=self.operating_costs["pool"],
+                        skim=skim,
+                        new_ods=comb,
+                        additional_traveller=traveller,
+                        sharing_discount=self.fares["pool_discount"],
+                        update_self=False
                     )
                     if profitability_comb[2] < base_profitability:
                         od_combinations.remove(comb)
@@ -355,10 +358,13 @@ class TaxiDispatcher(Dispatcher):
 
         best_ride, comb, profitability, utility, adm_combs = possible_assignments[0]
 
+        traveller.utilities["pool"] = utility[traveller]
+
         best_ride.add_traveller(
             traveller=traveller,
             new_profitability=profitability,
             ods_sequence=comb,
+            adm_combinations=adm_combs,
             skim=skim
         )
 

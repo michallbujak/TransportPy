@@ -86,7 +86,10 @@ class PoolRide(Ride):
 
         if kwargs.get("pooled_ride", True):
             fare_updated = fare * (1 - pool_discount)
-            no_travellers = len(self.travellers)
+            if Traveller in self.travellers:
+                no_travellers = len(self.travellers)
+            else:
+                no_travellers = len(self.travellers) + 1
             trip_time = trip_length / vehicle.vehicle_speed
 
             utility = -trip_length * fare_updated
