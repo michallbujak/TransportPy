@@ -97,7 +97,7 @@ def distinguish_fleet(
 
 def folder_creator(
         path: str,
-        logger: logging.Logger
+        logger: logging.Logger or None = None
 ) -> None:
     """
     Designed to create a folder under given path
@@ -110,7 +110,7 @@ def folder_creator(
     except OSError:
         pass
     else:
-        logger.warning(f'Creating folder at {path}')
+        log_if_logger(logger, 30, f'Creating folder at {path}')
 
 
 def load_skim(
@@ -309,7 +309,7 @@ def post_hoc_analysis(
         travellers: dict,
         config: dict,
         skim: dict,
-        logger: logging.Logger
+        logger: logging.Logger or None = None
 ) -> None:
     """
     Analyse run
@@ -420,15 +420,15 @@ def post_hoc_analysis(
         traveller_request_distance += pax.request_details.trip_length
 
     # profits
-    profits = 0
+    revenue = 0
     costs = 0
     for ride in rides:
-        profits += ride.profitability.profit
+        revenue += ride.profitability.revenue
         costs += ride.profitability.cost
 
     rides_mileage = round(rides_mileage, 1)
     traveller_request_distance = round(traveller_request_distance, 1)
-    profits = round(profits, 3)
+    revenue = round(revenue, 3)
     costs = round(costs, 3)
 
     with open(config["output_path"] + str(date.today()) + '/general_results.txt',
@@ -444,7 +444,7 @@ def post_hoc_analysis(
         file.write("Mileage reduction (%): ".ljust(25) +
                    str(round(100*(traveller_request_distance - rides_mileage)
                              / traveller_request_distance, 2)) + '\n')
-        file.write("Total profits: ".ljust(25) + str(profits) + '\n')
+        file.write("Total profits: ".ljust(25) + str(revenue) + '\n')
         file.write("Total costs: ".ljust(25) + str(costs))
 
     logger.error("Post-hoc analysis finished, results saved")

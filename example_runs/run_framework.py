@@ -141,12 +141,10 @@ while events_sorted:
 
     if len(events_sorted) == 0:
         all_rides = []
-        all_vehicles = []
+
         for _Dispatcher in dispatchers.values():
             for _ride_type in _Dispatcher.rides.keys():
                 all_rides += _Dispatcher.rides[_ride_type]
-            for _veh_type in _Dispatcher.fleet.keys():
-                all_vehicles += _Dispatcher.fleet[_veh_type]
 
         if not all(not r.active for r in all_rides):
             events_sorted.append((
@@ -155,9 +153,14 @@ while events_sorted:
                 None
             ))
 
-# utc.post_hoc_analysis(vehicles=Dispatcher.fleet['pool'],
-#                       rides=Dispatcher.rides['pool'],
-#                       travellers=Travellers,
-#                       config=simulation_config,
-#                       skim=skim,
-#                       logger=logger)
+all_vehicles = []
+for _Dispatcher in dispatchers.values():
+    for _veh_type in _Dispatcher.fleet.keys():
+        all_vehicles += _Dispatcher.fleet[_veh_type]
+
+utc.post_hoc_analysis(vehicles=all_vehicles,
+                      rides=all_rides,
+                      travellers=Travellers,
+                      config=data_bank["simulation_config"],
+                      skim=data_bank["skim"],
+                      logger=data_bank["logger"])

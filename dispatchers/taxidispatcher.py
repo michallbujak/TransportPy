@@ -359,6 +359,8 @@ class TaxiDispatcher(Dispatcher):
         best_ride, comb, profitability, utility, adm_combs = possible_assignments[0]
 
         traveller.utilities["pool"] = utility[traveller]
+        for _traveller in best_ride.travellers:
+            _traveller.utilities["pool"] = utility[_traveller]
 
         best_ride.add_traveller(
             traveller=traveller,
