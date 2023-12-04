@@ -226,6 +226,9 @@ def sort_events_chronologically(
     @type requests: pd.Dataframe
     @return list of results
     """
+    requests = requests[['id', 'origin', 'destination', 'request_time', 'type', 'operator']]
+    vehicles = vehicles[['id', 'origin', 'start_time', 'end_time',
+                         'type', 'capacity', 'speed', 'operator']]
     r_t = [(str_to_datetime(req['request_time']), 'request', req) for num, req in requests.iterrows()]
     v_st = [(str_to_datetime(veh['start_time']), 'new_vehicle', veh) for num, veh in vehicles.iterrows()]
     return sorted(r_t + v_st, key=lambda x: (x[0], x[1]))
