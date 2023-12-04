@@ -168,12 +168,14 @@ def load_any_excel(path: str
     @param path: path to the file
     @return: desired dataframe
     """
-    try:
-        return pd.read_excel(path)
-    except UnicodeDecodeError:
+    assert isinstance(path, str), "Wrong path format"
+    assert len(path) > 3, "Incorrect path"
+    if path[-3:] == "csv":
         return pd.read_csv(path)
-    except FileNotFoundError as exc:
-        raise exc
+    elif path[-4:] == "xlsx":
+        return pd.read_excel(path)
+    else:
+        raise ValueError("Incorrect path")
 
 
 def str_to_datetime(input_string: str,

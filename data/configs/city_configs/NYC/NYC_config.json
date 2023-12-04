@@ -1,0 +1,7 @@
+{
+    "city": "Manhattan, New York County, New York, United States",
+    "paths": {
+		"skim_matrix": "data/city_graphs/NYC/NYC_skim_matrix.parquet",
+		"city_graph": "data/city_graphs/NYC/NYC_city_graph.pickle"
+	}
+}

@@ -1,10 +1,10 @@
 {
-	"city_config": "data/configs/city_configs/Brzesko/Brzesko_config.json",
+	"city_config": "data/configs/city_configs/NYC/NYC_config.json",
 	"behavioural_config": "data/configs/behavioural_configs/behavioural_config_test.json",
 	"fares_config": "data/configs/pricing_configs/fares_test.json",
 	"path_results": "data/results/",
-	"requests": "data/requests/Brzesko/Brzesko_requests_pool.xlsx",
-	"vehicles": "data/vehicles/Brzesko/Brzesko_vehicles_pool.xlsx",
+	"requests": "data/requests/NYC/NYC_100.csv",
+	"vehicles": "data/vehicles/NYC/NYC_100.csv",
 	"output_path": "data/results/",
 	"logger_level": "INFO",
 	"taxi_operators": ["city_taxi"],
